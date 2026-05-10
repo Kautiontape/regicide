@@ -50,7 +50,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
-	class="royal-touch flex flex-col items-center gap-2 sm:gap-3 cursor-pointer select-none"
+	class="royal-touch flex flex-col items-center gap-1.5 sm:gap-3 cursor-pointer select-none"
 	role="button"
 	tabindex="0"
 	aria-label={tipText}
@@ -62,26 +62,26 @@
 >
 	<!-- Card -->
 	<div
-		class="relative w-32 h-48 sm:w-40 sm:h-60 rounded-xl shadow-2xl bg-white border-4 {isRed
+		class="relative w-24 h-36 sm:w-40 sm:h-60 rounded-xl shadow-2xl bg-white border-4 {isRed
 			? 'text-red-600 border-red-200'
 			: 'text-slate-900 border-slate-300'}"
 	>
-		<div class="absolute top-2 left-2 leading-tight">
-			<div class="font-bold text-xl sm:text-2xl">{royal.rank}</div>
-			<div class="text-lg sm:text-xl">{SUIT_GLYPH[royal.suit]}</div>
+		<div class="absolute top-1 left-1 sm:top-2 sm:left-2 leading-tight">
+			<div class="font-bold text-base sm:text-2xl">{royal.rank}</div>
+			<div class="text-sm sm:text-xl">{SUIT_GLYPH[royal.suit]}</div>
 		</div>
 		<div class="absolute inset-0 flex flex-col items-center justify-center gap-1">
-			<div class="text-6xl sm:text-7xl">{SUIT_GLYPH[royal.suit]}</div>
-			<div class="text-[11px] sm:text-sm uppercase tracking-widest font-semibold">{rankLabel}</div>
+			<div class="text-4xl sm:text-7xl">{SUIT_GLYPH[royal.suit]}</div>
+			<div class="text-[9px] sm:text-sm uppercase tracking-widest font-semibold">{rankLabel}</div>
 		</div>
-		<div class="absolute bottom-2 right-2 leading-tight rotate-180">
-			<div class="font-bold text-xl sm:text-2xl">{royal.rank}</div>
-			<div class="text-lg sm:text-xl">{SUIT_GLYPH[royal.suit]}</div>
+		<div class="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 leading-tight rotate-180">
+			<div class="font-bold text-base sm:text-2xl">{royal.rank}</div>
+			<div class="text-sm sm:text-xl">{SUIT_GLYPH[royal.suit]}</div>
 		</div>
 	</div>
 
 	<!-- HP bar -->
-	<div class="w-40 sm:w-48">
+	<div class="w-36 sm:w-48">
 		<div class="flex justify-between text-xs text-slate-200 mb-1">
 			<span>HP</span>
 			<span>{remainingHP} / {royal.maxHealth}</span>

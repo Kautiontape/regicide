@@ -1,0 +1,200 @@
+<script lang="ts">
+	import type { GameState } from '$lib/engine';
+
+	interface Props {
+		state: GameState;
+		onNewGame: () => void;
+	}
+	let { state, onNewGame }: Props = $props();
+
+	type Stats = {
+		turns: number;
+		damageDealt: number;
+		damageTaken: number;
+		exactKills: number;
+		healed: number;
+		drawn: number;
+		shielded: number;
+		jestersPlayed: number;
+	};
+
+	function deriveStats(s: GameState): Stats {
+		let damageDealt = 0;
+		let damageTaken = 0;
+		let exactKills = 0;
+		let healed = 0;
+		let drawn = 0;
+		let shielded = 0;
+		let jestersPlayed = 0;
+		for (const e of s.log) {
+			if (e.kind === 'damage') {
+				const m = e.text.match(/Dealt (\d+) damage/);
+				if (m) damageDealt += parseInt(m[1], 10);
+			} else if (e.kind === 'defeat') {
+				if (/exact/i.test(e.text)) exactKills++;
+			} else if (e.kind === 'discard') {
+				// "Discarded N card(s) for X to cover Y damage."
+				const m = e.text.match(/for (\d+)/);
+				if (m) damageTaken += parseInt(m[1], 10);
+			} else if (e.kind === 'heal') {
+				const m = e.text.match(/healed (\d+)/);
+				if (m) healed += parseInt(m[1], 10);
+			} else if (e.kind === 'draw') {
+				// "♦ drew N." (suit power) and "Drew N to refill." (end-of-turn refill)
+				const m = e.text.match(/(?:drew|Drew) (\d+)/);
+				if (m) drawn += parseInt(m[1], 10);
+			} else if (e.kind === 'shield') {
+				const m = e.text.match(/\+(\d+)/);
+				if (m) shielded += parseInt(m[1], 10);
+			} else if (e.kind === 'jester') {
+				jestersPlayed++;
+			}
+		}
+		return {
+			turns: s.turn,
+			damageDealt,
+			damageTaken,
+			exactKills,
+			healed,
+			drawn,
+			shielded,
+			jestersPlayed
+		};
+	}
+
+	const stats = $derived(deriveStats(state));
+
+	// 24 confetti particles with deterministic offsets/colors so the animation is repeatable
+	// and not too noisy. Mostly amber/blue/red/emerald to match the game's palette.
+	const PALETTE = ['#fbbf24', '#60a5fa', '#f87171', '#34d399', '#f5f5f5'];
+	const particles = Array.from({ length: 24 }, (_, i) => ({
+		x: (i * 37) % 100, // 0..100 percent
+		delay: ((i * 53) % 100) / 100, // 0..1s
+		duration: 2.4 + ((i * 17) % 100) / 100,
+		drift: ((i * 29) % 60) - 30, // -30..30 px horizontal drift
+		rot: (i * 23) % 360,
+		color: PALETTE[i % PALETTE.length],
+		size: 6 + (i % 4) * 2 // 6..12px
+	}));
+</script>
+
+<div
+	class="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 overflow-hidden bg-slate-950/85 backdrop-blur-sm"
+	role="status"
+	aria-live="polite"
+>
+	<!-- Confetti layer -->
+	<div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+		{#each particles as p, i (i)}
+			<span
+				class="confetti"
+				style="
+					left: {p.x}%;
+					width: {p.size}px;
+					height: {p.size * 0.4}px;
+					background: {p.color};
+					animation-delay: {p.delay}s;
+					animation-duration: {p.duration}s;
+					--drift: {p.drift}px;
+					--rot: {p.rot}deg;
+				"
+			></span>
+		{/each}
+	</div>
+
+	<div class="relative flex flex-col items-center gap-4 sm:gap-6 max-w-md w-full">
+		<div class="text-center">
+			<div class="text-4xl sm:text-5xl font-bold text-amber-300 tracking-tight victory-pop">
+				Victory
+			</div>
+			<div class="text-sm sm:text-base text-slate-300 mt-1">
+				All 12 royals defeated in {stats.turns} turn{stats.turns === 1 ? '' : 's'}.
+			</div>
+		</div>
+
+		<div class="grid grid-cols-2 gap-2 sm:gap-3 w-full">
+			<div class="bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
+				<div class="text-[10px] uppercase tracking-wider text-slate-400">Damage dealt</div>
+				<div class="text-xl font-bold text-red-300">{stats.damageDealt}</div>
+			</div>
+			<div class="bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
+				<div class="text-[10px] uppercase tracking-wider text-slate-400">Damage taken</div>
+				<div class="text-xl font-bold text-slate-200">{stats.damageTaken}</div>
+			</div>
+			<div class="bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
+				<div class="text-[10px] uppercase tracking-wider text-slate-400">Exact kills</div>
+				<div class="text-xl font-bold text-amber-300">{stats.exactKills}</div>
+			</div>
+			<div class="bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
+				<div class="text-[10px] uppercase tracking-wider text-slate-400">♥ Healed</div>
+				<div class="text-xl font-bold text-red-300">{stats.healed}</div>
+			</div>
+			<div class="bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
+				<div class="text-[10px] uppercase tracking-wider text-slate-400">♦ Drawn</div>
+				<div class="text-xl font-bold text-amber-200">{stats.drawn}</div>
+			</div>
+			<div class="bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
+				<div class="text-[10px] uppercase tracking-wider text-slate-400">♠ Shield</div>
+				<div class="text-xl font-bold text-blue-300">{stats.shielded}</div>
+			</div>
+		</div>
+
+		{#if stats.jestersPlayed > 0}
+			<div class="text-xs text-slate-400">
+				{stats.jestersPlayed} jester{stats.jestersPlayed === 1 ? '' : 's'} played
+			</div>
+		{/if}
+
+		<button
+			type="button"
+			onclick={onNewGame}
+			class="mt-2 px-6 py-3 rounded-lg font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 transition-colors"
+		>
+			New game
+		</button>
+	</div>
+</div>
+
+<style>
+	@keyframes pop-in {
+		0% {
+			opacity: 0;
+			transform: scale(0.6);
+		}
+		60% {
+			transform: scale(1.08);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+	:global(.victory-pop) {
+		animation: pop-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+	}
+
+	@keyframes confetti-fall {
+		from {
+			transform: translate3d(0, -10vh, 0) rotate(0deg);
+			opacity: 0;
+		}
+		15% {
+			opacity: 0.95;
+		}
+		100% {
+			transform: translate3d(var(--drift, 0), 110vh, 0) rotate(calc(var(--rot, 360deg) + 360deg));
+			opacity: 0;
+		}
+	}
+	:global(.confetti) {
+		position: absolute;
+		top: 0;
+		display: block;
+		border-radius: 1px;
+		opacity: 0;
+		animation-name: confetti-fall;
+		animation-iteration-count: infinite;
+		animation-timing-function: linear;
+		will-change: transform, opacity;
+	}
+</style>

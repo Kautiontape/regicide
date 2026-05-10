@@ -7,6 +7,11 @@
 		selected?: boolean;
 		disabled?: boolean;
 		dim?: boolean;
+		/**
+		 * The royal is immune to this card's suit, so its power won't activate.
+		 * Surfaces a small ⊘ badge plus a slight desaturation; the card still attacks for value.
+		 */
+		suppressed?: boolean;
 		/** Visual emphasis: 'suggest' = green outline (auto-pick recommendation). */
 		emphasis?: 'suggest' | null;
 		/** Optional tooltip text. If omitted, generated from suit/rank. Passed to onhover. */
@@ -22,6 +27,7 @@
 		selected = false,
 		disabled = false,
 		dim = false,
+		suppressed = false,
 		emphasis = null,
 		tooltip,
 		onclick,
@@ -134,10 +140,10 @@
 		{isJester ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white' : 'bg-white'}
 		{isRed && !isJester ? 'text-red-600' : ''}
 		{!isRed && !isJester ? 'text-slate-900' : ''}
-		{selected ? 'ring-4 ring-amber-400 -translate-y-2 shadow-xl' : 'hover:-translate-y-1'}
+		{selected ? 'ring-4 ring-amber-400 -translate-y-2 shadow-xl' : 'card-lift'}
 		{!selected && emphasis === 'suggest' ? 'ring-2 ring-emerald-400/80' : ''}
 		{disabled ? 'opacity-40 cursor-not-allowed' : ''}
-		{dim && !selected ? 'opacity-30 grayscale hover:translate-y-0' : ''}"
+		{dim && !selected ? 'opacity-30 grayscale' : ''}"
 	disabled={disabled && !selected}
 	aria-label="{rankLabel} of {card.suit ?? 'jester'}"
 >
@@ -157,6 +163,21 @@
 			<div>{SUIT_GLYPH[card.suit!]}</div>
 		</div>
 	{/if}
+	{#if suppressed}
+		<!-- Royal is immune to this card's suit. The card still attacks for value, but the
+			 suit power won't fire. Overlay a red X across the center pip so it reads as
+			 "this aspect won't activate" without making the whole card look unplayable. -->
+		<div
+			class="absolute inset-0 flex items-center justify-center pointer-events-none"
+			title="The royal is immune to this suit — the card still attacks, but its power won't fire"
+			aria-label="{card.suit} power suppressed by royal immunity"
+		>
+			<svg viewBox="0 0 24 24" class="suit-x w-2/3 h-2/3 stroke-red-600 drop-shadow" fill="none" stroke-width="3" stroke-linecap="round">
+				<line x1="5" y1="5" x2="19" y2="19" />
+				<line x1="19" y1="5" x2="5" y2="19" />
+			</svg>
+		</div>
+	{/if}
 </button>
 
 <style>
@@ -171,5 +192,18 @@
 		-webkit-user-select: none;
 		user-select: none;
 		pointer-events: none;
+	}
+	/* Hover-lift only on devices that actually have hover (mouse/trackpad).
+	   Touch taps would otherwise trigger the lift, which feels laggy. */
+	@media (hover: hover) {
+		:global(.card-lift:hover) {
+			transform: translateY(-0.25rem);
+		}
+	}
+
+	/* Suppressed-suit X overlay drawn slightly larger than the pip so the strokes read
+	   even on the smallest card size without being so big they swallow the whole card. */
+	:global(.suit-x) {
+		filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.4));
 	}
 </style>

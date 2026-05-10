@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { game } from '$lib/store.svelte';
-	import { checkCombo, forecast, type Card as CardType } from '$lib/engine';
+	import { checkCombo, forecast, RULE_TEXT, type Card as CardType, type RuleId } from '$lib/engine';
 	import Card from './Card.svelte';
 	import Royal from './Royal.svelte';
 	import PhaseStrip from './PhaseStrip.svelte';
 	import Log from './Log.svelte';
-	import ResolveToast from './ResolveToast.svelte';
 	import Forecast from './Forecast.svelte';
 	import DamageMeter from './DamageMeter.svelte';
 	import Legend from './Legend.svelte';
 	import Tutorial from './Tutorial.svelte';
 	import PilePeek from './PilePeek.svelte';
+	import InfoSlot, { type InfoKind } from './InfoSlot.svelte';
+	import Victory from './Victory.svelte';
+	import Defeat from './Defeat.svelte';
 
 	const gs = $derived(game.state);
 	const selected = $derived(game.selected);
@@ -32,10 +34,30 @@
 	}
 	const sortedHand = $derived(gs ? sortHand(gs.hand) : []);
 
-	let hoverTip: string | null = $state(null);
 	let openPile: 'tavern' | 'discard' | null = $state(null);
 	let mobileSheet: 'log' | 'legend' | null = $state(null);
 	let confirmNewGame = $state(false);
+
+	type SlotMsg = { kind: InfoKind; text: string; detail?: string };
+	let infoOverride = $state<SlotMsg | null>(null);
+	let infoTimer: number | null = null;
+
+	function setOverride(m: SlotMsg, ttlMs = 4000) {
+		infoOverride = m;
+		if (infoTimer) clearTimeout(infoTimer);
+		infoTimer = window.setTimeout(() => {
+			infoOverride = null;
+			infoTimer = null;
+		}, ttlMs);
+	}
+
+	function clearOverride() {
+		infoOverride = null;
+		if (infoTimer) {
+			clearTimeout(infoTimer);
+			infoTimer = null;
+		}
+	}
 
 	// What's currently selected — is it a legal combo?
 	const selectedCards = $derived(gs ? gs.hand.filter((c) => selected.includes(c.id)) : []);
@@ -64,25 +86,131 @@
 			: new Set<string>()
 	);
 
-	const hint = $derived(buildHint());
+	// During play, cards matching the royal's still-active immune suit won't trigger powers.
+	const suppressedSuit = $derived(
+		gs && gs.currentEnemy && !gs.immunityCancelled && gs.phase === 'play'
+			? gs.currentEnemy.suit
+			: null
+	);
 
-	function buildHint(): string {
-		if (!gs) return '';
-		if (gs.phase === 'won') return 'You defeated all 12 royals.';
-		if (gs.phase === 'lost') return 'The royals win this round.';
+	const SUIT_RULE: Record<string, string> = {
+		hearts: '♥ Heal: returns that many cards from discard to the bottom of the tavern.',
+		diamonds: '♦ Draw: draw that many cards (capped at hand size).',
+		clubs: '♣ Double: this attack deals double damage.',
+		spades: "♠ Shield: reduce the royal's attack by that much for the rest of the battle."
+	};
+
+	function describeCard(c: CardType): SlotMsg {
+		if (c.rank === 'JESTER') {
+			return {
+				kind: 'card',
+				text: 'Jester (value 0)',
+				detail: "Cancels the royal's immunity. In solo, your next play is randomly chosen from your hand."
+			};
+		}
+		const rankLabel = c.rank === '10' ? '10' : c.rank;
+		return {
+			kind: 'card',
+			text: `${rankLabel} of ${c.suit} · value ${c.value}`,
+			detail: c.suit ? SUIT_RULE[c.suit] : undefined
+		};
+	}
+
+	function describeRoyal(): SlotMsg | null {
+		if (!gs?.currentEnemy) return null;
+		const r = gs.currentEnemy;
+		const rankLabel = r.rank === 'J' ? 'Jack' : r.rank === 'Q' ? 'Queen' : 'King';
+		const remainingHP = r.maxHealth - r.damageTaken;
+		const eff = Math.max(0, r.attack - game.shield);
+		const detail = gs.immunityCancelled
+			? 'Immunity has been cancelled by a Jester.'
+			: `Immune to ${r.suit} — powers from ${r.suit} cards do not activate.`;
+		return {
+			kind: 'royal',
+			text: `${rankLabel} of ${r.suit} · HP ${remainingHP}/${r.maxHealth} · ATK ${eff}`,
+			detail
+		};
+	}
+
+	function describeResolve(): SlotMsg | null {
+		const a = game.lastAction;
+		if (!a || a.kind !== 'play') return null;
+		const result = a.result;
+		const parts: string[] = [];
+		for (const act of result.activations) {
+			if (act.suppressed) {
+				parts.push(`${act.suit} suppressed (immunity)`);
+				continue;
+			}
+			let id: RuleId;
+			if (act.suit === 'hearts') id = 'heartsHeal';
+			else if (act.suit === 'diamonds') id = 'diamondsDraw';
+			else if (act.suit === 'clubs') id = 'clubsDouble';
+			else id = 'spadesShield';
+			parts.push(RULE_TEXT[id].short);
+		}
+		if (result.defeated) {
+			parts.push(result.defeated.exact ? '★ exact kill' : 'royal defeated');
+		}
+		if (parts.length === 0) return null;
+		return { kind: 'resolve', text: parts.join(' · ') };
+	}
+
+	const computedSlot = $derived<SlotMsg>(buildSlot());
+
+	function buildSlot(): SlotMsg {
+		if (!gs) return { kind: 'prompt', text: '' };
+		if (gs.phase === 'won') return { kind: 'success', text: 'You defeated all 12 royals.' };
+		if (gs.phase === 'lost') return { kind: 'warn', text: 'The royals win this round.' };
 		if (gs.phase === 'play') {
-			if (selected.length === 0) return 'Pick a card to play, or a legal combo.';
-			if (combo && !combo.ok) return combo.reason;
-			return '';
+			if (selected.length === 0) return { kind: 'prompt', text: 'Pick a card to play, or a legal combo.' };
+			if (combo && !combo.ok) return { kind: 'warn', text: combo.reason };
+			if (selectedCards.length === 1) return describeCard(selectedCards[0]);
+			if (combo && combo.ok) {
+				return {
+					kind: 'prompt',
+					text: `Combo of ${selectedCards.length} ready`,
+					detail: 'Press Play to commit.'
+				};
+			}
 		}
 		if (gs.phase === 'damage') {
-			if (damageOwed === 0) return 'No damage this turn — your shields covered it. End turn.';
-			if (!game.canPay) return `Cannot cover ${damageOwed} damage. Game over.`;
-			if (selectedSum >= damageOwed) return `Discard ${selectedCards.length} card(s) for ${selectedSum} (≥ ${damageOwed}).`;
-			return `Need to discard cards summing ≥ ${damageOwed}. Currently ${selectedSum}.`;
+			if (damageOwed === 0) return { kind: 'success', text: 'No damage this turn — your shields covered it. End turn.' };
+			if (!game.canPay) return { kind: 'warn', text: `Cannot cover ${damageOwed} damage. Game over.` };
+			if (selectedSum >= damageOwed)
+				return {
+					kind: 'success',
+					text: `Discard ${selectedCards.length} card${selectedCards.length === 1 ? '' : 's'} for ${selectedSum} (≥ ${damageOwed}).`
+				};
+			return {
+				kind: 'prompt',
+				text: `Need to discard cards summing ≥ ${damageOwed}.`,
+				detail: `Currently ${selectedSum}.`
+			};
 		}
-		return '';
+		return { kind: 'prompt', text: '' };
 	}
+
+	const slot = $derived<SlotMsg>(infoOverride ?? computedSlot);
+
+	// React to play resolutions: write to slot for a few seconds.
+	$effect(() => {
+		const msg = describeResolve();
+		// We trigger on changes in lastAction. The dependency comes from describeResolve reading game.lastAction.
+		if (msg) {
+			setOverride(msg, 3500);
+		}
+	});
+
+	// When selection changes, clear card/royal overrides so the computed slot (which
+	// already describes the selected card) is what shows, not a stale hover preview.
+	$effect(() => {
+		// Read selected to register the dependency.
+		selected.length;
+		if (infoOverride?.kind === 'card' || infoOverride?.kind === 'royal') {
+			clearOverride();
+		}
+	});
 
 	function play() {
 		game.commitPlay();
@@ -176,7 +304,7 @@
 </script>
 
 {#if gs}
-	<div class="min-h-[100dvh] bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 text-slate-100 flex flex-col">
+	<div class="board-root bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 text-slate-100 flex flex-col">
 		<!-- Top bar -->
 		<header class="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 border-b border-slate-800/60 gap-2">
 			<div class="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
@@ -248,42 +376,48 @@
 
 		<!-- Phase strip -->
 		<div class="py-2 sm:py-3 border-b border-slate-800/40">
-			<PhaseStrip phase={gs.phase} {hint} />
+			<PhaseStrip phase={gs.phase} />
+		</div>
+
+		<!-- Persistent info slot — hint + card/royal description + resolve summary all live here -->
+		<div class="pt-2 sm:pt-3 pb-1 sm:pb-2">
+			<InfoSlot kind={slot.kind} text={slot.text} detail={slot.detail} />
 		</div>
 
 		<!-- Main play area -->
 		<main class="flex-1 flex flex-col md:flex-row min-h-0">
-			<!-- Center column -->
-			<div class="flex-1 flex flex-col items-center justify-between p-3 sm:p-6 gap-2 sm:gap-4 relative min-h-0">
-				{#if hoverTip}
-					<button
-						type="button"
-						onclick={() => (hoverTip = null)}
-						aria-label="Dismiss tooltip"
-						class="absolute top-2 left-1/2 -translate-x-1/2 md:top-1/2 md:-translate-y-1/2 z-30 max-w-[92vw] md:max-w-sm px-4 py-3 pr-9 rounded-lg bg-slate-900/95 border border-amber-400/40 text-slate-100 text-xs sm:text-sm text-left leading-snug shadow-2xl tooltip-fade cursor-pointer"
-					>
-						{hoverTip}
-						<span aria-hidden="true" class="absolute top-1 right-2 text-slate-500 text-base leading-none">✕</span>
-					</button>
-				{/if}
-
+			<!-- Center column. justify-start + mt-auto on the hand row anchors play+hand to the
+				 bottom while the upper sections keep stable positions, even as forecast/played
+				 sections appear or disappear. -->
+			<div class="flex-1 flex flex-col items-center justify-start px-2 py-2 sm:p-6 gap-2 sm:gap-4 relative min-h-0">
 				{#if gs.currentEnemy}
 					<Royal
 						royal={gs.currentEnemy}
 						shield={game.shield}
 						immunityCancelled={gs.immunityCancelled}
-						onhover={(t) => (hoverTip = t)}
+						onhover={(t) => {
+							// Hover/tap on the royal pushes its description into the info slot.
+							if (t) {
+								const m = describeRoyal();
+								if (m) setOverride(m, 6000);
+							} else if (infoOverride?.kind === 'royal') {
+								clearOverride();
+							}
+						}}
 					/>
-				{:else if gs.phase === 'won'}
-					<div class="text-3xl font-bold text-amber-300">VICTORY</div>
+				{/if}
+				<!-- End-state overlays sit on top of whatever was on the board so the player
+					 still sees the royal that beat them along with the damage math. -->
+				{#if gs.phase === 'won'}
+					<Victory state={gs} onNewGame={() => game.abandon()} />
 				{:else if gs.phase === 'lost'}
-					<div class="text-3xl font-bold text-red-400">DEFEATED</div>
+					<Defeat state={gs} onNewGame={() => game.abandon()} />
 				{/if}
 
 				<!-- Played cards this battle -->
 				{#if gs.playedThisBattle.length > 0}
-					<div class="flex flex-col items-center gap-1">
-						<div class="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">Played this battle</div>
+					<div class="flex flex-col items-center gap-0.5 sm:gap-1">
+						<div class="hidden sm:block text-xs text-slate-400 uppercase tracking-wider">Played this battle</div>
 						<div class="flex gap-1 flex-wrap justify-center max-w-[92vw] md:max-w-2xl">
 							{#each gs.playedThisBattle as c (c.id)}
 								<Card card={c} size="sm" disabled />
@@ -292,9 +426,10 @@
 					</div>
 				{/if}
 
-				<!-- Forecast / damage meter -->
-				<div class="w-full px-1 sm:px-2">
-					{#if gs.phase === 'play' && fc}
+				<!-- Forecast / damage meter — fixed min-height so the play button and hand below
+					 don't reflow when a forecast appears or disappears. -->
+				<div class="w-full px-1 sm:px-2 min-h-[7rem] sm:min-h-[7.5rem] flex items-center">
+					{#if gs.phase === 'play' && fc && selected.length > 0}
 						<Forecast
 							forecast={fc}
 							currentShield={game.shield}
@@ -311,9 +446,20 @@
 					{/if}
 				</div>
 
-				<!-- Hand -->
-				<div class="flex flex-col items-center gap-2 sm:gap-3 w-full">
+				<!-- Hand. mt-auto pushes the action button + hand to the bottom of the column,
+					 keeping their positions stable as upper sections (forecast, played pile) change. -->
+				<div class="mt-auto flex flex-col items-center gap-2 sm:gap-3 w-full">
 					<div class="flex items-center gap-2">
+						{#if game.shield > 0}
+							<div
+								class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-400/40 text-blue-200 text-sm font-semibold"
+								title="Shield blocks {game.shield} damage from the royal each turn this battle"
+								aria-label="Shield {game.shield}"
+							>
+								<span class="text-base leading-none">♠</span>
+								<span class="font-bold">{game.shield}</span>
+							</div>
+						{/if}
 						{#if gs.phase === 'play'}
 							<button
 								onclick={play}
@@ -376,7 +522,7 @@
 						<!-- Hand container: horizontal scroll on overflow.
 							 pt-3 leaves room for the -translate-y-2 lift on selected cards
 							 (overflow-x-auto clips both axes per CSS spec). -->
-						<div class="flex items-end gap-2 sm:gap-3 justify-start md:justify-center pt-3 pb-4 sm:pt-0 sm:pb-8 overflow-x-auto md:overflow-visible px-3 md:px-0 scroll-smooth hand-scroll snap-x">
+						<div class="flex items-end gap-2 sm:gap-3 justify-start md:justify-center pt-3 pb-2 sm:pt-0 sm:pb-8 overflow-x-auto md:overflow-visible px-3 md:px-0 scroll-smooth hand-scroll snap-x">
 							{#each sortedHand as c, i (c.id)}
 								{@const isSel = selected.includes(c.id)}
 								{@const inactive = gs.phase === 'play' && !isAddable(c)}
@@ -386,9 +532,16 @@
 										selected={isSel}
 										disabled={gs.phase !== 'play' && gs.phase !== 'damage'}
 										dim={inactive}
+										suppressed={c.suit !== null &&
+											c.suit === suppressedSuit &&
+											c.rank !== 'JESTER'}
 										emphasis={!isSel && suggestedSet.has(c.id) ? 'suggest' : null}
 										onclick={() => selectCard(c)}
-										onhover={(t) => (hoverTip = t)}
+										onhover={(t) => {
+											// Hover/long-press on a hand card writes its description into the info slot.
+											if (t) setOverride(describeCard(c), 5000);
+											else if (infoOverride?.kind === 'card') clearOverride();
+										}}
 									/>
 									{#if i < 9}
 										<kbd
@@ -449,8 +602,6 @@
 			</aside>
 		</main>
 
-		<!-- Resolve toast: shows the most recent play's activations + rule explanations -->
-		<ResolveToast />
 		<Tutorial />
 
 		<!-- Mobile slide-up sheet for log / legend -->
@@ -549,16 +700,17 @@
 {/if}
 
 <style>
-	@keyframes tooltip-in {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
+	/* On tall-enough mobile/desktop screens, lock to a single viewport so the play
+	   surface never scrolls. Very short screens (e.g. iPhone SE landscape) fall back
+	   to natural height and allow page scroll. */
+	:global(.board-root) {
+		min-height: 100dvh;
 	}
-	:global(.tooltip-fade) {
-		animation: tooltip-in 0.12s ease-out;
+	@media (min-height: 700px) {
+		:global(.board-root) {
+			height: 100dvh;
+			overflow: hidden;
+		}
 	}
 
 	@keyframes sheet-up {

@@ -3,9 +3,8 @@
 
 	interface Props {
 		phase: Phase;
-		hint: string;
 	}
-	let { phase, hint }: Props = $props();
+	let { phase }: Props = $props();
 
 	const steps: { id: Phase | 'resolve'; label: string }[] = [
 		{ id: 'play', label: '1. Play' },
@@ -19,20 +18,17 @@
 	}
 </script>
 
-<div class="flex flex-col gap-1.5 sm:gap-2 items-center px-2">
-	<div class="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-		{#each steps as step, i}
-			<div
-				class="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full transition-colors {isActive(step.id)
-					? 'bg-amber-400 text-slate-900 font-semibold'
-					: 'bg-slate-800 text-slate-400'}"
-			>
-				{step.label}
-			</div>
-			{#if i < steps.length - 1}
-				<span class="text-slate-600">›</span>
-			{/if}
-		{/each}
-	</div>
-	<div class="text-[11px] sm:text-xs text-slate-300 italic min-h-4 text-center">{hint}</div>
+<div class="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+	{#each steps as step, i}
+		<div
+			class="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full transition-colors {isActive(step.id)
+				? 'bg-amber-400 text-slate-900 font-semibold'
+				: 'bg-slate-800 text-slate-400'}"
+		>
+			{step.label}
+		</div>
+		{#if i < steps.length - 1}
+			<span class="text-slate-600">›</span>
+		{/if}
+	{/each}
 </div>

@@ -1,16 +1,32 @@
 <script lang="ts">
 	import { game } from '$lib/store.svelte';
 
+	const JESTERS_KEY = 'regicide:jesters:v1';
+
 	let jesters: 0 | 1 | 2 = $state(0);
 	let tutorial = $state(true);
 
 	$effect(() => {
 		if (typeof localStorage === 'undefined') return;
+		// Restore previously chosen jester count so a fresh "new game" doesn't reset to 0.
+		const saved = localStorage.getItem(JESTERS_KEY);
+		const n = saved === null ? null : parseInt(saved, 10);
+		if (n === 0 || n === 1 || n === 2) jesters = n;
 		// Default the tutorial to off if the player has dismissed it before.
 		if (localStorage.getItem('regicide:tutorialDone:v1') === '1') tutorial = false;
 	});
 
+	function pickJesters(n: 0 | 1 | 2) {
+		jesters = n;
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem(JESTERS_KEY, String(n));
+		}
+	}
+
 	function start() {
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem(JESTERS_KEY, String(jesters));
+		}
 		game.start({ jesters, handSize: 8, tutorial });
 	}
 </script>
@@ -27,7 +43,7 @@
 					{#each [0, 1, 2] as n}
 						<button
 							type="button"
-							onclick={() => (jesters = n as 0 | 1 | 2)}
+							onclick={() => pickJesters(n as 0 | 1 | 2)}
 							class="rounded-lg py-2 text-sm transition-colors {jesters === n
 								? 'bg-amber-400 text-slate-900 font-semibold'
 								: 'bg-slate-800 text-slate-300 hover:bg-slate-700'}"
