@@ -63,13 +63,58 @@
 	);
 	const tipText = $derived(tooltip ?? generatedTip);
 
-	function handleClick() {
-		if (disabled) return;
-		onclick?.();
-	}
+	let longPressTimer: number | null = null;
+	let longPressFired = false;
+	const LONG_PRESS_MS = 450;
 
 	function notifyHover(on: boolean) {
 		onhover?.(on ? tipText : null);
+	}
+
+	function handleClick() {
+		if (disabled) return;
+		// Suppress the click that follows a long-press release on touch.
+		if (longPressFired) {
+			longPressFired = false;
+			return;
+		}
+		onclick?.();
+	}
+
+	function onPointerDown(e: PointerEvent) {
+		if (disabled) return;
+		// Long-press is a touch-only affordance. Mouse and pen use standard click.
+		if (e.pointerType !== 'touch') return;
+		longPressFired = false;
+		clearLongPress();
+		longPressTimer = window.setTimeout(() => {
+			longPressFired = true;
+			notifyHover(true);
+		}, LONG_PRESS_MS);
+	}
+
+	function onPointerEnd(e: PointerEvent) {
+		if (e.pointerType !== 'touch') return;
+		clearLongPress();
+		if (longPressFired) {
+			// Hide the tooltip a beat after release so the user can read it as they release.
+			window.setTimeout(() => notifyHover(false), 100);
+		}
+	}
+
+	function clearLongPress() {
+		if (longPressTimer) {
+			clearTimeout(longPressTimer);
+			longPressTimer = null;
+		}
+	}
+
+	function onFocus(e: FocusEvent) {
+		// Only fire tooltip on keyboard focus — not on the focus that follows a tap on touch.
+		const t = e.target as HTMLElement;
+		if (t && typeof t.matches === 'function' && t.matches(':focus-visible')) {
+			notifyHover(true);
+		}
 	}
 </script>
 
@@ -78,9 +123,14 @@
 	onclick={handleClick}
 	onmouseenter={() => notifyHover(true)}
 	onmouseleave={() => notifyHover(false)}
-	onfocus={() => notifyHover(true)}
+	onpointerdown={onPointerDown}
+	onpointerup={onPointerEnd}
+	onpointercancel={onPointerEnd}
+	onpointerleave={onPointerEnd}
+	oncontextmenu={(e) => e.preventDefault()}
+	onfocus={onFocus}
 	onblur={() => notifyHover(false)}
-	class="relative {dims[size]} rounded-lg shadow-md font-semibold transition-all select-none cursor-pointer
+	class="card-touch relative {dims[size]} rounded-lg shadow-md font-semibold transition-all select-none cursor-pointer
 		{isJester ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white' : 'bg-white'}
 		{isRed && !isJester ? 'text-red-600' : ''}
 		{!isRed && !isJester ? 'text-slate-900' : ''}
@@ -108,3 +158,18 @@
 		</div>
 	{/if}
 </button>
+
+<style>
+	/* Suppress iOS long-press text-selection callout and Android long-press menu. */
+	:global(.card-touch) {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+		touch-action: manipulation;
+	}
+	:global(.card-touch *) {
+		-webkit-user-select: none;
+		user-select: none;
+		pointer-events: none;
+	}
+</style>

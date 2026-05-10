@@ -43,7 +43,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
-	class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-6"
+	class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
 	role="dialog"
 	aria-modal="true"
 	aria-label={title}
@@ -52,7 +52,7 @@
 >
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 	<div
-		class="max-w-3xl w-full max-h-[80vh] bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl flex flex-col gap-3"
+		class="max-w-3xl w-full max-h-[85vh] sm:max-h-[80vh] bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 shadow-2xl flex flex-col gap-3"
 		onclick={(e) => e.stopPropagation()}
 		role="document"
 	>

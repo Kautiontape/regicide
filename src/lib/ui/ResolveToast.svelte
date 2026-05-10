@@ -39,7 +39,9 @@
 
 {#if visible && lines.length > 0}
 	<div
-		class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md bg-slate-900/95 border border-amber-400/50 shadow-2xl rounded-lg p-4 animate-in"
+		class="fixed left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1.5rem)] sm:w-auto
+			top-[42%] sm:top-auto sm:bottom-6
+			bg-slate-900/95 border border-amber-400/50 shadow-2xl rounded-lg p-3 sm:p-4 animate-in"
 	>
 		<div class="space-y-2">
 			{#each lines as line}
@@ -57,17 +59,15 @@
 {/if}
 
 <style>
-	@keyframes fade-up {
+	@keyframes fade-in {
 		from {
 			opacity: 0;
-			transform: translate(-50%, 12px);
 		}
 		to {
 			opacity: 1;
-			transform: translate(-50%, 0);
 		}
 	}
 	.animate-in {
-		animation: fade-up 0.25s ease-out;
+		animation: fade-in 0.2s ease-out;
 	}
 </style>

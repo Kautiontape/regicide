@@ -21,26 +21,26 @@
 </script>
 
 {#if forecast}
-	<div class="bg-slate-900/85 border border-slate-700 rounded-xl p-3 max-w-2xl w-full mx-auto shadow-lg">
+	<div class="bg-slate-900/85 border border-slate-700 rounded-xl p-2 sm:p-3 max-w-2xl w-full mx-auto shadow-lg">
 		{#if !forecast.combo.ok}
-			<div class="text-sm text-red-300 italic">
+			<div class="text-xs sm:text-sm text-red-300 italic">
 				⚠ {forecast.combo.reason}
 			</div>
 		{:else}
-			<div class="grid grid-cols-3 gap-2 text-sm">
+			<div class="grid grid-cols-3 gap-1.5 sm:gap-2 text-sm">
 				<!-- Damage block -->
-				<div class="flex flex-col items-center justify-center bg-slate-800/60 rounded-lg p-2">
+				<div class="flex flex-col items-center justify-center bg-slate-800/60 rounded-lg p-1.5 sm:p-2">
 					<div class="text-[10px] uppercase tracking-wider text-slate-400">Damage</div>
 					<div class="flex items-baseline gap-1">
-						<span class="text-2xl font-bold text-red-300">{forecast.damage}</span>
+						<span class="text-xl sm:text-2xl font-bold text-red-300">{forecast.damage}</span>
 						{#if forecast.damage !== forecast.rawDamage}
-							<span class="text-xs text-slate-400 line-through">{forecast.rawDamage}</span>
+							<span class="text-[10px] sm:text-xs text-slate-400 line-through">{forecast.rawDamage}</span>
 						{/if}
 					</div>
-					<div class="text-[10px] text-slate-400">
+					<div class="text-[10px] text-slate-400 text-center leading-tight">
 						{#if forecast.defeated}
 							<span class="text-amber-300 font-semibold">
-								{forecast.defeated.exact ? '★ EXACT KILL' : 'DEFEATS ROYAL'}
+								{forecast.defeated.exact ? '★ EXACT' : 'DEFEAT'}
 							</span>
 						{:else}
 							→ HP {forecast.enemyHpAfter}
@@ -49,19 +49,19 @@
 				</div>
 
 				<!-- Shield / next ATK preview -->
-				<div class="flex flex-col items-center justify-center bg-slate-800/60 rounded-lg p-2">
-					<div class="text-[10px] uppercase tracking-wider text-slate-400">Next attack</div>
+				<div class="flex flex-col items-center justify-center bg-slate-800/60 rounded-lg p-1.5 sm:p-2">
+					<div class="text-[10px] uppercase tracking-wider text-slate-400 text-center">Next atk</div>
 					{#if forecast.defeated}
-						<div class="text-2xl font-bold text-emerald-300">—</div>
-						<div class="text-[10px] text-slate-400">no counter-attack</div>
+						<div class="text-xl sm:text-2xl font-bold text-emerald-300">—</div>
+						<div class="text-[10px] text-slate-400 text-center leading-tight">no counter</div>
 					{:else}
 						<div class="flex items-baseline gap-1">
-							<span class="text-2xl font-bold text-red-300">{forecast.newEnemyAtk}</span>
+							<span class="text-xl sm:text-2xl font-bold text-red-300">{forecast.newEnemyAtk}</span>
 							{#if atkDelta !== 0}
-								<span class="text-xs text-blue-300">({atkDelta > 0 ? '+' : ''}{atkDelta})</span>
+								<span class="text-[10px] sm:text-xs text-blue-300">({atkDelta > 0 ? '+' : ''}{atkDelta})</span>
 							{/if}
 						</div>
-						<div class="text-[10px] text-slate-400">
+						<div class="text-[10px] text-slate-400 text-center leading-tight">
 							shield {forecast.newShield}
 							{#if shieldDelta > 0}<span class="text-blue-300">+{shieldDelta}</span>{/if}
 						</div>
@@ -69,13 +69,13 @@
 				</div>
 
 				<!-- Hand / deck preview -->
-				<div class="flex flex-col items-center justify-center bg-slate-800/60 rounded-lg p-2">
-					<div class="text-[10px] uppercase tracking-wider text-slate-400">After play</div>
+				<div class="flex flex-col items-center justify-center bg-slate-800/60 rounded-lg p-1.5 sm:p-2">
+					<div class="text-[10px] uppercase tracking-wider text-slate-400 text-center">After</div>
 					<div class="text-xs text-slate-200">
 						hand <span class="font-semibold">{forecast.newHandSize}</span>
 					</div>
-					<div class="text-[10px] text-slate-400">
-						tavern {forecast.newTavernSize} · discard {forecast.newDiscardSize}
+					<div class="text-[10px] text-slate-400 text-center leading-tight">
+						T{forecast.newTavernSize} · D{forecast.newDiscardSize}
 					</div>
 				</div>
 			</div>

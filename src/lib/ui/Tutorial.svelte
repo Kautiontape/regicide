@@ -74,19 +74,22 @@
 
 {#if step}
 	<div
-		class="fixed bottom-6 right-6 z-40 max-w-sm bg-slate-900/95 border border-amber-400/60 rounded-xl p-4 shadow-2xl tutorial-fade"
+		class="fixed z-40 bg-slate-900/95 border border-amber-400/60 rounded-xl p-3 sm:p-4 shadow-2xl tutorial-fade
+			left-2 right-2 top-2 max-w-none
+			md:left-auto md:right-6 md:top-auto md:bottom-6 md:max-w-sm"
 	>
 		<div class="flex items-start gap-3">
 			<div class="text-amber-300 text-xl leading-none mt-0.5">✦</div>
 			<div class="flex-1">
-				<div class="font-bold text-amber-300 mb-1">{step.title}</div>
-				<div class="text-sm text-slate-200 leading-snug">{step.body}</div>
+				<div class="font-bold text-amber-300 mb-1 text-sm sm:text-base">{step.title}</div>
+				<div class="text-xs sm:text-sm text-slate-200 leading-snug">{step.body}</div>
 			</div>
 			<button
 				type="button"
 				onclick={dismissPermanently}
 				title="Dismiss tutorial"
-				class="text-slate-500 hover:text-slate-200 text-xs"
+				class="text-slate-400 hover:text-slate-200 text-base leading-none px-1"
+				aria-label="Dismiss tutorial"
 			>
 				✕
 			</button>
