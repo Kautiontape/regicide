@@ -6,6 +6,11 @@ jobs:
   deploy:
     runs-on: [self-hosted, ktn]
     steps:
+      # actions/setup-node provisions Node onto PATH for the runner's job working
+      # directory. ktn's system Node is 18 which is too old for Vite 8 / TS 6.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Deploy
         run: |
           cd /opt/services/regicide
