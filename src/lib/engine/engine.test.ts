@@ -100,6 +100,44 @@ describe('play resolution', () => {
 		expect(sel.effectiveAttack(r.state)).toBe(5);
 	});
 
+	it('Ace + spade companion grants shield = combo total, not just spade value', () => {
+		// Bug fix pin: shield from spade power fires at the combo total. Ace♠ + 7♣ should
+		// give shield 8 (combo total), not shield 1 (just the Ace's value).
+		const s0 = newGame({ jesters: 0, handSize: 8 }, 1);
+		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const };
+		const aceS: Card = { id: 'AS', suit: 'spades', rank: 'A', value: 1 };
+		const sevC: Card = { id: '7C', suit: 'clubs', rank: '7', value: 7 };
+		const s: GameState = {
+			...s0,
+			currentEnemy: enemy,
+			hand: [aceS, sevC, ...s0.hand.slice(2)]
+		};
+		const r = play(s, ['AS', '7C']);
+		expect(sel.shield(r.state)).toBe(8);
+		// Same logic with Ace♠ + non-spade should hold for any partner — total drives shield.
+	});
+
+	it('shield accumulates across multiple plays in the same battle', () => {
+		// Two separate spade plays should stack their shield contributions, since shield
+		// resets only when a royal is defeated.
+		const s0 = newGame({ jesters: 0, handSize: 8 }, 1);
+		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, maxHealth: 100 };
+		const fiveS: Card = { id: '5S', suit: 'spades', rank: '5', value: 5 };
+		const threeS: Card = { id: '3S', suit: 'spades', rank: '3', value: 3 };
+		const s: GameState = {
+			...s0,
+			currentEnemy: enemy,
+			hand: [fiveS, threeS, ...s0.hand.slice(2)]
+		};
+		const r1 = play(s, ['5S']);
+		expect(sel.shield(r1.state)).toBe(5);
+		// Stitch a second play directly: the engine doesn't require going through the
+		// damage phase between plays for the purposes of this test.
+		const ready: GameState = { ...r1.state, phase: 'play' };
+		const r2 = play(ready, ['3S']);
+		expect(sel.shield(r2.state)).toBe(8);
+	});
+
 	it('diamonds draw refills hand toward limit', () => {
 		const s0 = newGame({ jesters: 0, handSize: 8 }, 1);
 		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const };

@@ -61,8 +61,8 @@ export function forecast(state: GameState, cardIds: string[]): Forecast | null {
 			powers: [],
 			enemyHpAfter: state.currentEnemy.maxHealth - state.currentEnemy.damageTaken,
 			defeated: null,
-			newShield: shieldOf(state.playedThisBattle),
-			newEnemyAtk: Math.max(0, state.currentEnemy.attack - shieldOf(state.playedThisBattle)),
+			newShield: state.shield,
+			newEnemyAtk: Math.max(0, state.currentEnemy.attack - state.shield),
 			newHandSize: state.hand.length,
 			newDiscardSize: state.discardPile.length,
 			newTavernSize: state.tavernDeck.length
@@ -82,8 +82,8 @@ export function forecast(state: GameState, cardIds: string[]): Forecast | null {
 			powers: [],
 			enemyHpAfter: enemy.maxHealth - enemy.damageTaken,
 			defeated: null,
-			newShield: shieldOf(state.playedThisBattle),
-			newEnemyAtk: Math.max(0, enemy.attack - shieldOf(state.playedThisBattle)),
+			newShield: state.shield,
+			newEnemyAtk: Math.max(0, enemy.attack - state.shield),
 			newHandSize: handSize,
 			newDiscardSize: state.discardPile.length,
 			newTavernSize: state.tavernDeck.length
@@ -169,12 +169,12 @@ export function forecast(state: GameState, cardIds: string[]): Forecast | null {
 	const enemyHpAfter = Math.max(0, remainingHp - damage);
 	const defeated = damage >= remainingHp ? { exact: damage === remainingHp } : null;
 
-	// New shield total includes spades just played (only if not suppressed).
-	const spadeJustPlayed = cards
-		.filter((c) => c.suit === 'spades')
-		.reduce((s, c) => s + c.value, 0);
+	// Shield comes from the spade power, which fires at the combo total — not the sum of
+	// the spades' individual values. So Ace♠ + 7♣ contributes the combo total (8), not 1.
+	const spadeInCombo = cards.some((c) => c.suit === 'spades');
 	const spadeImmune = immunityActive && enemy.suit === 'spades';
-	const newShield = shieldOf(state.playedThisBattle) + (spadeImmune ? 0 : spadeJustPlayed);
+	const shieldFromThisPlay = spadeInCombo && !spadeImmune ? total : 0;
+	const newShield = state.shield + shieldFromThisPlay;
 	// If this play defeats the royal, the next royal appears with full ATK and 0 shield.
 	const newEnemyAtk = defeated ? 0 : Math.max(0, enemy.attack - newShield);
 
@@ -193,6 +193,3 @@ export function forecast(state: GameState, cardIds: string[]): Forecast | null {
 	};
 }
 
-function shieldOf(played: Card[]): number {
-	return played.filter((c) => c.suit === 'spades').reduce((s, c) => s + c.value, 0);
-}

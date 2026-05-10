@@ -23,15 +23,9 @@ function appendLog(state: GameState, entry: Omit<LogEntry, 'turn'>): GameState {
 	return { ...state, log: [...state.log, { turn: state.turn, ...entry }] };
 }
 
-function shieldFromPlayed(playedThisBattle: Card[]): number {
-	return playedThisBattle
-		.filter((c) => c.suit === 'spades')
-		.reduce((s, c) => s + c.value, 0);
-}
-
 function effectiveAttack(state: GameState): number {
 	if (!state.currentEnemy) return 0;
-	return Math.max(0, state.currentEnemy.attack - shieldFromPlayed(state.playedThisBattle));
+	return Math.max(0, state.currentEnemy.attack - state.shield);
 }
 
 /* ───────── public surface ───────── */
@@ -200,9 +194,11 @@ function applyPower(state: GameState, suit: Suit, value: number): GameState {
 			log: [...state.log, { turn: state.turn, kind: 'double', text: `♣ damage doubled.` }]
 		};
 	}
-	// spades — shield is computed dynamically from playedThisBattle, just log.
+	// spades — shield is the combo total (not just the spade card's individual value),
+	// so Ace♠ + 7♣ correctly grants 8 shield rather than 1.
 	return {
 		...state,
+		shield: state.shield + value,
 		log: [...state.log, { turn: state.turn, kind: 'shield', text: `♠ +${value} shield this battle.` }]
 	};
 }
@@ -380,7 +376,7 @@ export function clearForcedPlay(state: GameState): GameState {
 /** Public read helpers used by the UI. */
 export const sel = {
 	effectiveAttack,
-	shield: (s: GameState) => shieldFromPlayed(s.playedThisBattle),
+	shield: (s: GameState) => s.shield,
 	enemyImmuneTo: (s: GameState, suit: Suit) =>
 		s.currentEnemy?.suit === suit && !s.immunityCancelled
 };
