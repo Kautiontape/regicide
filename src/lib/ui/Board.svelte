@@ -14,6 +14,7 @@
 	import InfoSlot, { type InfoKind } from './InfoSlot.svelte';
 	import Victory from './Victory.svelte';
 	import Defeat from './Defeat.svelte';
+	import Timer from './Timer.svelte';
 
 	const gs = $derived(game.state);
 	const selected = $derived(game.selected);
@@ -309,8 +310,12 @@
 		<header class="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 border-b border-slate-800/60 gap-2">
 			<div class="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
 				<h1 class="font-bold tracking-tight text-base sm:text-lg">Regicide</h1>
-				<div class="text-[11px] sm:text-xs text-slate-400 truncate">
-					<span class="hidden sm:inline">Turn </span>T{gs.turn} · {gs.castleDeck.length + (gs.currentEnemy ? 1 : 0)}<span class="hidden sm:inline"> royal{gs.castleDeck.length === 0 ? '' : 's'}</span> left
+				<div class="text-[11px] sm:text-xs text-slate-400 truncate flex items-center gap-1.5 sm:gap-2">
+					<span><span class="hidden sm:inline">Turn </span>T{gs.turn}</span>
+					<span class="text-slate-600">·</span>
+					<Timer startedAt={gs.startedAt} endedAt={gs.endedAt} />
+					<span class="text-slate-600 hidden sm:inline">·</span>
+					<span class="hidden sm:inline">{gs.castleDeck.length + (gs.currentEnemy ? 1 : 0)} royal{gs.castleDeck.length === 0 ? '' : 's'} left</span>
 				</div>
 			</div>
 			<div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">

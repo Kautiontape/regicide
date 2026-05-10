@@ -1,11 +1,16 @@
 <script lang="ts">
 	import type { GameState } from '$lib/engine';
+	import { formatDuration } from '$lib/history';
 
 	interface Props {
 		state: GameState;
 		onNewGame: () => void;
 	}
 	let { state, onNewGame }: Props = $props();
+
+	const elapsedMs = $derived(
+		Math.max(0, (state.endedAt ?? Date.now()) - state.startedAt)
+	);
 
 	type Stats = {
 		turns: number;
@@ -108,7 +113,9 @@
 				Victory
 			</div>
 			<div class="text-sm sm:text-base text-slate-300 mt-1">
-				All 12 royals defeated in {stats.turns} turn{stats.turns === 1 ? '' : 's'}.
+				All 12 royals defeated in {stats.turns} turn{stats.turns === 1 ? '' : 's'}
+				<span class="text-slate-500">·</span>
+				<span class="font-mono tabular-nums text-slate-200">{formatDuration(elapsedMs)}</span>
 			</div>
 		</div>
 

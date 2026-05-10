@@ -1,11 +1,16 @@
 <script lang="ts">
 	import type { GameState } from '$lib/engine';
+	import { formatDuration } from '$lib/history';
 
 	interface Props {
 		state: GameState;
 		onNewGame: () => void;
 	}
 	let { state, onNewGame }: Props = $props();
+
+	const elapsedMs = $derived(
+		Math.max(0, (state.endedAt ?? Date.now()) - state.startedAt)
+	);
 
 	const enemy = $derived(state.currentEnemy);
 	const baseAttack = $derived(enemy?.attack ?? 0);
@@ -70,7 +75,9 @@
 		{/if}
 
 		<div class="text-xs text-slate-400 text-center">
-			{royalsRemaining} royal{royalsRemaining === 1 ? '' : 's'} still standing.
+			{royalsRemaining} royal{royalsRemaining === 1 ? '' : 's'} still standing
+			<span class="text-slate-600">·</span>
+			<span class="font-mono tabular-nums">{formatDuration(elapsedMs)}</span>
 		</div>
 
 		<button

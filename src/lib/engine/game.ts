@@ -56,6 +56,8 @@ export function newGame(config: GameConfig, seed = Date.now()): GameState {
 		jesterEnemyChooses: false,
 		phase: 'play',
 		turn: 1,
+		startedAt: Date.now(),
+		endedAt: null,
 		log,
 		seenRules: {}
 	};
@@ -228,7 +230,10 @@ function defeatRoyal(state: GameState, exact: boolean): GameState {
 
 	// Advance to next royal.
 	if (s.castleDeck.length === 0) {
-		return appendLog({ ...s, currentEnemy: null, phase: 'won' }, { kind: 'win', text: 'All royals defeated. You win!' });
+		return appendLog(
+			{ ...s, currentEnemy: null, phase: 'won', endedAt: Date.now() },
+			{ kind: 'win', text: 'All royals defeated. You win!' }
+		);
 	}
 	const next = s.castleDeck[0];
 	// Defeating a royal still ends the player's turn — draw back up to hand size before the
@@ -356,7 +361,7 @@ export function damageCheck(state: GameState): GameState {
 	if (!enemy) return state;
 	const dmg = effectiveAttack(state);
 	let s = appendLog(state, { kind: 'lose', text: `Cannot cover ${dmg} damage from ${rankName(enemy.rank)} of ${enemy.suit}.` });
-	s = { ...s, phase: 'lost' };
+	s = { ...s, phase: 'lost', endedAt: Date.now() };
 	return s;
 }
 

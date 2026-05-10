@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { game } from '$lib/store.svelte';
+	import { loadHistory, summarize, formatDuration } from '$lib/history';
 
 	const JESTERS_KEY = 'regicide:jesters:v1';
 
 	let jesters: 0 | 1 | 2 = $state(0);
 	let tutorial = $state(true);
+	let showHistory = $state(false);
+	let history = $state(loadHistory());
+	const summary = $derived(summarize(history));
 
 	$effect(() => {
 		if (typeof localStorage === 'undefined') return;
@@ -81,5 +85,69 @@
 			<p class="mb-1">First turn? Play a single card to attack the Jack. Suits do things:</p>
 			<p>♥ heal · ♦ draw · ♣ double damage · ♠ shield. Tooltips will explain as you go.</p>
 		</div>
+
+		{#if summary.total > 0}
+			<div class="mt-6 border-t border-slate-800 pt-4">
+				<div class="flex items-center justify-between mb-3">
+					<div class="text-sm font-medium text-slate-200">History</div>
+					<button
+						type="button"
+						onclick={() => (showHistory = !showHistory)}
+						class="text-xs text-slate-400 hover:text-amber-300 underline-offset-2 hover:underline"
+					>
+						{showHistory ? 'hide' : `${history.length} game${history.length === 1 ? '' : 's'}`}
+					</button>
+				</div>
+				<div class="grid grid-cols-3 gap-2 text-xs">
+					<div class="bg-slate-800/60 rounded p-2">
+						<div class="text-slate-400 text-[10px] uppercase tracking-wider">Wins</div>
+						<div class="text-base font-bold text-amber-300">
+							{summary.wins}
+							<span class="text-[11px] text-slate-400 font-normal">/ {summary.total}</span>
+						</div>
+					</div>
+					<div class="bg-slate-800/60 rounded p-2">
+						<div class="text-slate-400 text-[10px] uppercase tracking-wider">Best turns</div>
+						<div class="text-base font-bold text-slate-200">
+							{summary.bestTurns ?? '—'}
+						</div>
+					</div>
+					<div class="bg-slate-800/60 rounded p-2">
+						<div class="text-slate-400 text-[10px] uppercase tracking-wider">Best time</div>
+						<div class="text-base font-bold text-slate-200 font-mono tabular-nums">
+							{summary.bestTimeMs === null ? '—' : formatDuration(summary.bestTimeMs)}
+						</div>
+					</div>
+				</div>
+
+				{#if showHistory}
+					<div class="mt-3 max-h-60 overflow-y-auto space-y-1.5 pr-1">
+						{#each [...history].reverse() as r (r.startedAt)}
+							<div
+								class="flex items-center justify-between gap-2 text-xs bg-slate-800/40 border border-slate-700/60 rounded px-2.5 py-1.5"
+							>
+								<div class="flex items-center gap-2 min-w-0">
+									{#if r.outcome === 'won'}
+										<span class="text-amber-300 font-bold">W</span>
+									{:else}
+										<span class="text-red-400 font-bold">L</span>
+									{/if}
+									<span class="text-slate-300">
+										{r.turns}T
+										<span class="text-slate-500">·</span>
+										<span class="font-mono tabular-nums">{formatDuration(r.elapsedMs)}</span>
+										<span class="text-slate-500">·</span>
+										{r.jesters}J
+									</span>
+								</div>
+								<div class="text-slate-500 text-[11px] whitespace-nowrap">
+									{r.outcome === 'lost' ? `${r.royalsDefeated}/12 royals` : ''}
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 </div>

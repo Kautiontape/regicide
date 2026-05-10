@@ -71,6 +71,11 @@ export interface GameState {
 	jesterEnemyChooses: boolean;
 	phase: Phase;
 	turn: number;
+	/** Wall-clock timestamp (ms since epoch) when the game began. Used for the match timer
+	 *  and history records. Persists in the save so reloading mid-game keeps real elapsed time. */
+	startedAt: number;
+	/** Set when the game transitions to 'won' or 'lost' so elapsed time freezes at completion. */
+	endedAt: number | null;
 	log: LogEntry[];
 	/** Counters for the guidance layer: how many times the user has seen each rule fire. Persisted across games. */
 	seenRules: Record<string, number>;

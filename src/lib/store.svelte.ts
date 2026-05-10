@@ -15,6 +15,7 @@ import {
 	type ResolveResult,
 	type RuleId
 } from './engine';
+import { recordCompletedGame } from './history';
 
 const SAVE_KEY = 'regicide:save:v1';
 const SEEN_KEY = 'regicide:seen:v1';
@@ -24,7 +25,12 @@ function loadState(): GameState | null {
 	try {
 		const raw = localStorage.getItem(SAVE_KEY);
 		if (!raw) return null;
-		return JSON.parse(raw) as GameState;
+		const parsed = JSON.parse(raw) as GameState;
+		// Migration: older saves don't have startedAt / endedAt. Backfill so the timer
+		// doesn't show NaN and end-state screens don't read undefined.
+		if (typeof parsed.startedAt !== 'number') parsed.startedAt = Date.now();
+		if (parsed.endedAt === undefined) parsed.endedAt = null;
+		return parsed;
 	} catch {
 		return null;
 	}
@@ -133,6 +139,7 @@ function createGameStore() {
 		}
 		bumpSeen(updates);
 		selected = [];
+		maybeRecordCompletion(state);
 		saveState(state);
 	}
 
@@ -164,7 +171,16 @@ function createGameStore() {
 				selected = [];
 			}
 		}
+		maybeRecordCompletion(state);
 		saveState(state);
+	}
+
+	function maybeRecordCompletion(s: GameState) {
+		// recordCompletedGame is idempotent on startedAt so calling it twice on the same
+		// finished game is safe — the second call replaces the existing record.
+		if (s.phase === 'won' || s.phase === 'lost') {
+			recordCompletedGame(s);
+		}
 	}
 
 	function bumpSeen(ids: RuleId[]) {
