@@ -235,6 +235,9 @@ function defeatRoyal(state: GameState, exact: boolean): GameState {
 		return appendLog({ ...s, currentEnemy: null, phase: 'won' }, { kind: 'win', text: 'All royals defeated. You win!' });
 	}
 	const next = s.castleDeck[0];
+	// Defeating a royal still ends the player's turn — draw back up to hand size before the
+	// next royal so a defeating play doesn't soft-lock when the player emptied their hand.
+	s = refillHand(s);
 	s = {
 		...s,
 		castleDeck: s.castleDeck.slice(1),
@@ -326,15 +329,27 @@ export function suggestDiscards(state: GameState): string[] {
 	return best ? best.ids : hand.map((c) => c.id);
 }
 
-function endTurn(state: GameState): GameState {
-	if (!canPayDamageNextTurn(state)) {
-		// Lose check happens at the top of damage phase; here we just bump turn.
-	}
-	return { ...state, phase: 'play', turn: state.turn + 1 };
+/** Draw from the tavern (top = end of array) up to the configured hand size. */
+function refillHand(state: GameState): GameState {
+	const limit = state.config.handSize;
+	const need = Math.max(0, limit - state.hand.length);
+	const draw = Math.min(need, state.tavernDeck.length);
+	if (draw <= 0) return state;
+	const drawn = state.tavernDeck.slice(-draw);
+	const remaining = state.tavernDeck.slice(0, state.tavernDeck.length - draw);
+	return {
+		...state,
+		tavernDeck: remaining,
+		hand: [...state.hand, ...drawn],
+		log: [...state.log, { turn: state.turn, kind: 'draw', text: `Drew ${draw} to refill.` }]
+	};
 }
 
-function canPayDamageNextTurn(_state: GameState): boolean {
-	return true; // placeholder; loss is checked when entering damage phase
+function endTurn(state: GameState): GameState {
+	// Standard Regicide: draw back up to hand size at end of turn. Without this, discarding
+	// everything to cover damage soft-locks the next turn (no cards in hand to play).
+	const refilled = refillHand(state);
+	return { ...refilled, phase: 'play', turn: refilled.turn + 1 };
 }
 
 /** Force a check at the start of damage phase: if hand sum < attack, the game is lost. */

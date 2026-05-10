@@ -176,10 +176,73 @@ describe('damage phase', () => {
 		expect(checked.phase).toBe('lost');
 		expect(canPayDamage(damaged)).toBe(false);
 	});
+
+	it('refills hand from tavern after taking damage', () => {
+		// Standard Regicide: end-of-turn draw back up to hand size. Without this you can
+		// soft-lock by discarding everything and entering the next play phase with 0 cards.
+		const s0 = newGame({ jesters: 0, handSize: 8 }, 7);
+		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, maxHealth: 100 };
+		const big: Card = { id: 'KC', suit: 'clubs', rank: 'K', value: 20 };
+		const s: GameState = {
+			...s0,
+			currentEnemy: enemy,
+			hand: [big],
+			phase: 'damage'
+		};
+		const after = takeDamage(s, ['KC']);
+		expect(after.phase).toBe('play');
+		// Hand should be refilled from tavern up to hand size (or as much as the tavern allows).
+		expect(after.hand.length).toBeGreaterThan(0);
+		expect(after.hand.length).toBeLessThanOrEqual(s0.config.handSize);
+	});
+
+	it('discarding a spade for damage cover does NOT grant shield', () => {
+		// Shield only comes from played spades (playedThisBattle), never from discarded ones.
+		const s0 = newGame({ jesters: 0, handSize: 8 }, 7);
+		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, maxHealth: 100, attack: 10 };
+		const spade: Card = { id: '8S', suit: 'spades', rank: '8', value: 8 };
+		const filler: Card = { id: '4D', suit: 'diamonds', rank: '4', value: 4 };
+		const s: GameState = {
+			...s0,
+			currentEnemy: enemy,
+			hand: [spade, filler, ...s0.hand.slice(2, 5)], // 5 cards
+			phase: 'damage',
+			playedThisBattle: []
+		};
+		expect(sel.shield(s)).toBe(0);
+		// Discard the spade (8) + filler (4) = 12 ≥ 10 to cover damage.
+		const after = takeDamage(s, ['8S', '4D']);
+		expect(after.phase).toBe('play');
+		// Spade should be in discard, not in playedThisBattle.
+		expect(after.discardPile.some((c) => c.id === '8S')).toBe(true);
+		expect(after.playedThisBattle.some((c) => c.id === '8S')).toBe(false);
+		// And shield must still be 0 — the discard granted no shield.
+		expect(sel.shield(after)).toBe(0);
+	});
+
+	it('refill is capped by tavern size', () => {
+		const s0 = newGame({ jesters: 0, handSize: 8 }, 7);
+		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, maxHealth: 100 };
+		const big: Card = { id: 'KC', suit: 'clubs', rank: 'K', value: 20 };
+		const s: GameState = {
+			...s0,
+			currentEnemy: enemy,
+			hand: [big],
+			tavernDeck: [],
+			phase: 'damage'
+		};
+		const after = takeDamage(s, ['KC']);
+		// Tavern was empty so the hand stays empty — UI must surface this as a stuck state.
+		expect(after.hand.length).toBe(0);
+		expect(after.tavernDeck.length).toBe(0);
+	});
 });
 
 describe('defeat outcomes', () => {
-	it('exact kill places royal on top of tavern', () => {
+	it('exact kill places royal on top of tavern, then end-of-turn refill draws it into hand', () => {
+		// Standard Regicide: exact damage puts the royal on top of the tavern, and the
+		// end-of-turn draw immediately refills the player's hand from the top. So the
+		// reward shows up in the next hand rather than sitting on the deck.
 		const s0 = newGame({ jesters: 0, handSize: 8 }, 1);
 		// Enemy is club-suit, so the club's double power is suppressed → damage = 10 vs HP 10 = exact.
 		const enemy = { ...s0.currentEnemy!, suit: 'clubs' as const, maxHealth: 10, attack: 0 } as typeof s0.currentEnemy;
@@ -187,8 +250,8 @@ describe('defeat outcomes', () => {
 		const s: GameState = { ...s0, currentEnemy: enemy as GameState['currentEnemy'], hand: [ten, ...s0.hand.slice(1)] };
 		const r = play(s, ['TC']);
 		expect(r.defeated).toMatchObject({ exact: true });
-		const top = r.state.tavernDeck[r.state.tavernDeck.length - 1];
-		expect(top.rank).toBe('J');
+		// The defeated Jack should be in the player's hand after refill.
+		expect(r.state.hand.some((c) => c.rank === 'J')).toBe(true);
 	});
 
 	it('overkill places royal in discard', () => {
