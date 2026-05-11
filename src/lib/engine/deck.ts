@@ -22,16 +22,14 @@ function cardId(suit: Suit, rank: Rank): string {
 	return `${r}${s}`;
 }
 
-/** Tavern deck: A-10 of all four suits + N jesters. Ace=1. */
-export function buildTavernDeck(jesters: 0 | 1 | 2): Card[] {
+/** Tavern deck: A-10 of all four suits. Ace=1. Solo Jesters live off to the side as one-shot
+ *  abilities and are never shuffled into the tavern. */
+export function buildTavernDeck(): Card[] {
 	const cards: Card[] = [];
 	for (const suit of SUITS) {
 		for (const rank of NUMBER_RANKS) {
 			cards.push({ id: cardId(suit, rank), suit, rank, value: rankValue(rank) });
 		}
-	}
-	for (let i = 0; i < jesters; i++) {
-		cards.push({ id: `JEST${i + 1}`, suit: null, rank: 'JESTER', value: 0 });
 	}
 	return cards;
 }

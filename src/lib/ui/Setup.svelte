@@ -2,9 +2,10 @@
 	import { game } from '$lib/store.svelte';
 	import { loadHistory, summarize, formatDuration } from '$lib/history';
 
-	const JESTERS_KEY = 'regicide:jesters:v1';
+	// Canonical solo Regicide ships with 2 Jester abilities. Bronze/Silver/Gold tier is
+	// derived from how many of those the player uses to win.
+	const STARTING_JESTERS = 2 as const;
 
-	let jesters: 0 | 1 | 2 = $state(0);
 	let tutorial = $state(true);
 	let showHistory = $state(false);
 	let history = $state(loadHistory());
@@ -12,26 +13,12 @@
 
 	$effect(() => {
 		if (typeof localStorage === 'undefined') return;
-		// Restore previously chosen jester count so a fresh "new game" doesn't reset to 0.
-		const saved = localStorage.getItem(JESTERS_KEY);
-		const n = saved === null ? null : parseInt(saved, 10);
-		if (n === 0 || n === 1 || n === 2) jesters = n;
 		// Default the tutorial to off if the player has dismissed it before.
 		if (localStorage.getItem('regicide:tutorialDone:v1') === '1') tutorial = false;
 	});
 
-	function pickJesters(n: 0 | 1 | 2) {
-		jesters = n;
-		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem(JESTERS_KEY, String(n));
-		}
-	}
-
 	function start() {
-		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem(JESTERS_KEY, String(jesters));
-		}
-		game.start({ jesters, handSize: 8, tutorial });
+		game.start({ jesters: STARTING_JESTERS, handSize: 8, tutorial });
 	}
 </script>
 
@@ -41,28 +28,6 @@
 		<p class="text-slate-400 mb-6">Solo. A standard 52-card deck. Twelve royals. Don't die.</p>
 
 		<div class="space-y-5">
-			<div>
-				<div class="text-sm font-medium text-slate-200 mb-2">Difficulty (Jesters)</div>
-				<div class="grid grid-cols-3 gap-2">
-					{#each [0, 1, 2] as n}
-						<button
-							type="button"
-							onclick={() => pickJesters(n as 0 | 1 | 2)}
-							class="rounded-lg py-2 text-sm transition-colors {jesters === n
-								? 'bg-amber-400 text-slate-900 font-semibold'
-								: 'bg-slate-800 text-slate-300 hover:bg-slate-700'}"
-						>
-							{n} Jester{n === 1 ? '' : 's'}
-						</button>
-					{/each}
-				</div>
-				<div class="text-xs text-slate-500 mt-2">
-					{#if jesters === 0}Hardest: no immunity-canceling.{/if}
-					{#if jesters === 1}One Jester to break a royal's immunity once.{/if}
-					{#if jesters === 2}Easiest: two Jesters to break immunities.{/if}
-				</div>
-			</div>
-
 			<label class="flex items-center gap-2 text-sm text-slate-200 cursor-pointer select-none">
 				<input
 					type="checkbox"

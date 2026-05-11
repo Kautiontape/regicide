@@ -7,14 +7,11 @@ export const RULE = {
 	clubsDouble: 'clubsDouble',
 	spadesShield: 'spadesShield',
 	suitImmunity: 'suitImmunity',
-	immunityCancelled: 'immunityCancelled',
 	companion: 'companion',
 	sameRankCombo: 'sameRankCombo',
 	exactKill: 'exactKill',
 	overkill: 'overkill',
-	yieldRule: 'yieldRule',
-	jesterPlayed: 'jesterPlayed',
-	jesterForcedPlay: 'jesterForcedPlay',
+	jesterAbility: 'jesterAbility',
 	damagePhase: 'damagePhase',
 	cantPay: 'cantPay'
 } as const;
@@ -24,11 +21,11 @@ export type RuleId = (typeof RULE)[keyof typeof RULE];
 export const RULE_TEXT: Record<RuleId, { short: string; long: string }> = {
 	heartsHeal: {
 		short: '♥ heal',
-		long: '♥ Hearts heal: shuffle that many cards from the discard pile back into the bottom of the tavern deck.'
+		long: '♥ Hearts heal: shuffle the discard pile, then place that many cards face-down under the tavern deck.'
 	},
 	diamondsDraw: {
 		short: '♦ draw',
-		long: '♦ Diamonds draw: draw that many cards (up to your hand limit). No discarding.'
+		long: '♦ Diamonds draw: draw that many cards (up to your hand limit). This is the only way to draw cards on a normal turn.'
 	},
 	clubsDouble: {
 		short: '♣ ×2',
@@ -42,37 +39,25 @@ export const RULE_TEXT: Record<RuleId, { short: string; long: string }> = {
 		short: 'immune',
 		long: 'A royal is immune to its own suit. The power on a card matching the royal\'s suit does not activate.'
 	},
-	immunityCancelled: {
-		short: 'immunity cancelled',
-		long: 'A Jester has cancelled this royal\'s immunity for the rest of the battle. Suit powers now activate normally.'
-	},
 	companion: {
 		short: 'animal companion',
 		long: 'Animal Companion: an Ace pairs with any one other card. Both suit powers activate; damage is the sum.'
 	},
 	sameRankCombo: {
 		short: 'same-rank combo',
-		long: 'Same-rank combo: two or more cards of the same rank that sum to 10 or less. All their suit powers activate.'
+		long: 'Same-rank combo: 2-4 cards of the same number that sum to 10 or less. All their suit powers activate.'
 	},
 	exactKill: {
 		short: 'exact kill!',
-		long: 'Exact kill: damage equalled remaining health. The defeated royal goes face-down on top of the tavern deck — your next draw is a known good card.'
+		long: 'Exact kill: damage equalled remaining health. The defeated royal goes face-down on top of the tavern deck — your next ♦ draw is a known good card.'
 	},
 	overkill: {
 		short: 'defeated',
 		long: 'Defeated by overkill. The royal goes to the discard pile.'
 	},
-	yieldRule: {
-		short: 'yield',
-		long: 'Yield: skip your attack and take the royal\'s counter-attack anyway. You cannot yield twice in a row in solo.'
-	},
-	jesterPlayed: {
-		short: 'jester',
-		long: 'Jester: deals 0 damage, takes 0 damage, and cancels the royal\'s immunity. In solo, your next play will be chosen at random from your hand.'
-	},
-	jesterForcedPlay: {
-		short: 'forced play',
-		long: 'After playing a Jester in solo, the enemy chooses for you: a card is selected at random from your hand and played.'
+	jesterAbility: {
+		short: 'jester ability',
+		long: 'Jester (solo): discard your hand and refill from the tavern. One-shot — usable at the start of your turn or before taking damage.'
 	},
 	damagePhase: {
 		short: 'take damage',

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Card } from '$lib/engine';
+	import JesterIcon from './JesterIcon.svelte';
 
 	interface Props {
 		card: Card;
@@ -148,8 +149,11 @@
 	aria-label="{rankLabel} of {card.suit ?? 'jester'}"
 >
 	{#if isJester}
-		<div class="absolute inset-0 flex items-center justify-center {pipSize[size]}">★</div>
+		<div class="absolute inset-0 flex items-center justify-center text-amber-200">
+			<JesterIcon size={size === 'sm' ? '1.5rem' : size === 'md' ? '2.25rem' : '3.25rem'} />
+		</div>
 		<div class="absolute top-1 left-1 text-[10px] font-bold tracking-wide">JEST</div>
+		<div class="absolute bottom-1 right-1 text-[10px] font-bold tracking-wide rotate-180">JEST</div>
 	{:else}
 		<div class="absolute top-1 left-1 leading-none">
 			<div class="font-bold">{rankLabel}</div>

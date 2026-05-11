@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTavernDeck } from './deck';
 import { checkCombo } from './combo';
-import { newGame, play, takeDamage, damageCheck, sel, canPayDamage, suggestDiscards } from './game';
+import { newGame, play, takeDamage, damageCheck, sel, canPayDamage, suggestDiscards, useJester } from './game';
 import type { Card, GameState } from './types';
 
 function jack(state: GameState) {
@@ -15,9 +15,8 @@ function findInHand(state: GameState, predicate: (c: Card) => boolean): Card {
 }
 
 describe('deck', () => {
-	it('builds 52 cards + jester count', () => {
-		expect(buildTavernDeck(0)).toHaveLength(40); // A-10 only
-		expect(buildTavernDeck(2)).toHaveLength(42);
+	it('builds 40 cards (A-10 of all suits, no jesters in tavern)', () => {
+		expect(buildTavernDeck()).toHaveLength(40);
 	});
 });
 
@@ -28,15 +27,22 @@ describe('combo validation', () => {
 	it('rejects empty', () => {
 		expect(checkCombo([])).toMatchObject({ ok: false });
 	});
-	it('accepts single jester', () => {
-		expect(checkCombo([c('J1', null, 'JESTER', 0)])).toMatchObject({ ok: true, kind: 'jester' });
-	});
-	it('rejects jester combo', () => {
-		expect(checkCombo([c('J1', null, 'JESTER', 0), c('5H', 'hearts', '5', 5)])).toMatchObject({ ok: false });
-	});
-	it('accepts animal companion', () => {
+	it('accepts animal companion (Ace + other)', () => {
 		expect(checkCombo([c('AS', 'spades', 'A', 1), c('5H', 'hearts', '5', 5)]))
 			.toMatchObject({ ok: true, kind: 'companion', totalValue: 6 });
+	});
+	it('accepts two-Ace pairing as a companion', () => {
+		expect(checkCombo([c('AS', 'spades', 'A', 1), c('AC', 'clubs', 'A', 1)]))
+			.toMatchObject({ ok: true, kind: 'companion', totalValue: 2 });
+	});
+	it('rejects 3 Aces as a combo (Animal Companions cannot be combo-stacked)', () => {
+		expect(
+			checkCombo([
+				c('AS', 'spades', 'A', 1),
+				c('AC', 'clubs', 'A', 1),
+				c('AH', 'hearts', 'A', 1)
+			])
+		).toMatchObject({ ok: false });
 	});
 	it('accepts same-rank combo summing to 10', () => {
 		expect(checkCombo([c('5H', 'hearts', '5', 5), c('5C', 'clubs', '5', 5)]))
@@ -59,6 +65,17 @@ describe('new game', () => {
 		jack(s);
 		expect(s.castleDeck).toHaveLength(11);
 		expect(s.phase).toBe('play');
+	});
+
+	it('initialises jestersRemaining from config', () => {
+		expect(newGame({ jesters: 0, handSize: 8 }, 1).jestersRemaining).toBe(0);
+		expect(newGame({ jesters: 2, handSize: 8 }, 1).jestersRemaining).toBe(2);
+	});
+
+	it('does not deal Jesters into the hand', () => {
+		const s = newGame({ jesters: 2, handSize: 8 }, 1);
+		expect(s.hand.every((c) => c.rank !== 'JESTER')).toBe(true);
+		expect(s.tavernDeck.every((c) => c.rank !== 'JESTER')).toBe(true);
 	});
 });
 
@@ -215,10 +232,10 @@ describe('damage phase', () => {
 		expect(canPayDamage(damaged)).toBe(false);
 	});
 
-	it('refills hand from tavern after taking damage', () => {
-		// Standard Regicide: end-of-turn draw back up to hand size. Without this you can
-		// soft-lock by discarding everything and entering the next play phase with 0 cards.
-		const s0 = newGame({ jesters: 0, handSize: 8 }, 7);
+	it('does NOT refill hand after taking damage (per official rules)', () => {
+		// Official Regicide: drawing happens only via ♦ Diamonds. An empty hand after damage
+		// is legal; the game ends only when the player can't play AND has no Jester left.
+		const s0 = newGame({ jesters: 2, handSize: 8 }, 7);
 		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, maxHealth: 100 };
 		const big: Card = { id: 'KC', suit: 'clubs', rank: 'K', value: 20 };
 		const s: GameState = {
@@ -229,9 +246,40 @@ describe('damage phase', () => {
 		};
 		const after = takeDamage(s, ['KC']);
 		expect(after.phase).toBe('play');
-		// Hand should be refilled from tavern up to hand size (or as much as the tavern allows).
-		expect(after.hand.length).toBeGreaterThan(0);
-		expect(after.hand.length).toBeLessThanOrEqual(s0.config.handSize);
+		// Hand had 1 card, used it to pay damage → hand is now empty, no refill.
+		expect(after.hand.length).toBe(0);
+	});
+
+	it('empty hand at start of play with no Jester triggers a loss', () => {
+		const s0 = newGame({ jesters: 0, handSize: 8 }, 7);
+		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, maxHealth: 100 };
+		const big: Card = { id: 'KC', suit: 'clubs', rank: 'K', value: 20 };
+		const s: GameState = {
+			...s0,
+			currentEnemy: enemy,
+			hand: [big],
+			tavernDeck: [],
+			phase: 'damage'
+		};
+		const after = takeDamage(s, ['KC']);
+		expect(after.phase).toBe('lost');
+	});
+
+	it('empty hand at start of play with a Jester does NOT trigger a loss', () => {
+		const s0 = newGame({ jesters: 1, handSize: 8 }, 7);
+		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, maxHealth: 100 };
+		const big: Card = { id: 'KC', suit: 'clubs', rank: 'K', value: 20 };
+		const s: GameState = {
+			...s0,
+			currentEnemy: enemy,
+			hand: [big],
+			tavernDeck: [],
+			phase: 'damage'
+		};
+		const after = takeDamage(s, ['KC']);
+		// Hand is empty but a Jester is still available → still playable.
+		expect(after.phase).toBe('play');
+		expect(after.jestersRemaining).toBe(1);
 	});
 
 	it('discarding a spade for damage cover does NOT grant shield', () => {
@@ -258,29 +306,24 @@ describe('damage phase', () => {
 		expect(sel.shield(after)).toBe(0);
 	});
 
-	it('refill is capped by tavern size', () => {
-		const s0 = newGame({ jesters: 0, handSize: 8 }, 7);
-		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, maxHealth: 100 };
-		const big: Card = { id: 'KC', suit: 'clubs', rank: 'K', value: 20 };
-		const s: GameState = {
-			...s0,
-			currentEnemy: enemy,
-			hand: [big],
-			tavernDeck: [],
-			phase: 'damage'
-		};
-		const after = takeDamage(s, ['KC']);
-		// Tavern was empty so the hand stays empty — UI must surface this as a stuck state.
-		expect(after.hand.length).toBe(0);
-		expect(after.tavernDeck.length).toBe(0);
+	it('damageCheck does NOT lose if a Jester ability is still available', () => {
+		// Even if the player can't currently cover the damage, a remaining Jester ability lets
+		// them refill their hand at the start of Step 4. So damageCheck must defer the loss.
+		const s0 = newGame({ jesters: 1, handSize: 8 }, 7);
+		const enemy = { ...s0.currentEnemy!, suit: 'hearts' as const, attack: 10 };
+		const tiny: Card[] = [{ id: '2D', suit: 'diamonds', rank: '2', value: 2 }]; // total 2 vs ATK 10
+		const damaged: GameState = { ...s0, currentEnemy: enemy, hand: tiny, phase: 'damage' };
+		const checked = damageCheck(damaged);
+		expect(checked.phase).toBe('damage'); // not 'lost'
+		expect(canPayDamage(damaged)).toBe(false);
 	});
 });
 
 describe('defeat outcomes', () => {
-	it('exact kill places royal on top of tavern, then end-of-turn refill draws it into hand', () => {
-		// Standard Regicide: exact damage puts the royal on top of the tavern, and the
-		// end-of-turn draw immediately refills the player's hand from the top. So the
-		// reward shows up in the next hand rather than sitting on the deck.
+	it('exact kill places royal face-down on top of the tavern (next ♦ draw retrieves it)', () => {
+		// Per official rules: an exact kill places the defeated royal on top of the tavern
+		// deck. The defeating player does NOT draw at end of turn — only ♦ Diamonds draws.
+		// So the royal sits on top of the deck waiting for the next ♦ to retrieve it.
 		const s0 = newGame({ jesters: 0, handSize: 8 }, 1);
 		// Enemy is club-suit, so the club's double power is suppressed → damage = 10 vs HP 10 = exact.
 		const enemy = { ...s0.currentEnemy!, suit: 'clubs' as const, maxHealth: 10, attack: 0 } as typeof s0.currentEnemy;
@@ -288,8 +331,10 @@ describe('defeat outcomes', () => {
 		const s: GameState = { ...s0, currentEnemy: enemy as GameState['currentEnemy'], hand: [ten, ...s0.hand.slice(1)] };
 		const r = play(s, ['TC']);
 		expect(r.defeated).toMatchObject({ exact: true });
-		// The defeated Jack should be in the player's hand after refill.
-		expect(r.state.hand.some((c) => c.rank === 'J')).toBe(true);
+		// The defeated Jack should be sitting on top of the tavern (end of array = top).
+		expect(r.state.tavernDeck[r.state.tavernDeck.length - 1].rank).toBe('J');
+		// And it should NOT yet be in the hand (no end-of-turn refill).
+		expect(r.state.hand.some((c) => c.rank === 'J')).toBe(false);
 	});
 
 	it('overkill places royal in discard', () => {
@@ -336,15 +381,39 @@ describe('suggestDiscards (min-waste)', () => {
 	});
 });
 
-describe('jester', () => {
-	it('cancels immunity and sets forced-play flag', () => {
-		const s0 = newGame({ jesters: 1, handSize: 8 }, 99);
-		// Find or inject a jester
-		const jest: Card = { id: 'JEST1', suit: null, rank: 'JESTER', value: 0 };
-		const s: GameState = { ...s0, hand: [jest, ...s0.hand.slice(1)] };
-		const r = play(s, ['JEST1']);
-		expect(r.state.immunityCancelled).toBe(true);
-		expect(r.state.jesterEnemyChooses).toBe(true);
-		expect(r.damageDealt).toBe(0);
+describe('solo Jester ability', () => {
+	it('discards the entire hand and refills from the tavern', () => {
+		const s0 = newGame({ jesters: 2, handSize: 8 }, 1);
+		const handBefore = s0.hand.length;
+		const tavernBefore = s0.tavernDeck.length;
+		const discardBefore = s0.discardPile.length;
+
+		const after = useJester(s0);
+		expect(after.jestersRemaining).toBe(1);
+		expect(after.hand.length).toBe(Math.min(s0.config.handSize, tavernBefore));
+		// Old hand cards are now in discard.
+		expect(after.discardPile.length).toBe(discardBefore + handBefore);
+		// Tavern shrank by the draw amount.
+		expect(after.tavernDeck.length).toBe(tavernBefore - after.hand.length);
+	});
+
+	it('does NOT cancel enemy immunity', () => {
+		const s0 = newGame({ jesters: 1, handSize: 8 }, 1);
+		const after = useJester(s0);
+		expect(after.immunityCancelled).toBe(false);
+	});
+
+	it('throws when no Jesters remain', () => {
+		const s0 = newGame({ jesters: 0, handSize: 8 }, 1);
+		expect(() => useJester(s0)).toThrow();
+	});
+
+	it('usable in both play and damage phase', () => {
+		const s0 = newGame({ jesters: 2, handSize: 8 }, 1);
+		// play phase
+		expect(() => useJester(s0)).not.toThrow();
+		// damage phase
+		const damaged: GameState = { ...s0, phase: 'damage' };
+		expect(() => useJester(damaged)).not.toThrow();
 	});
 });

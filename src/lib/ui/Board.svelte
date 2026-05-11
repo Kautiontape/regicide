@@ -10,6 +10,7 @@
 	import DamageMeter from './DamageMeter.svelte';
 	import Legend from './Legend.svelte';
 	import Tutorial from './Tutorial.svelte';
+	import JesterTray from './JesterTray.svelte';
 	import PilePeek from './PilePeek.svelte';
 	import InfoSlot, { type InfoKind } from './InfoSlot.svelte';
 	import Victory from './Victory.svelte';
@@ -102,13 +103,6 @@
 	};
 
 	function describeCard(c: CardType): SlotMsg {
-		if (c.rank === 'JESTER') {
-			return {
-				kind: 'card',
-				text: 'Jester (value 0)',
-				detail: "Cancels the royal's immunity. In solo, your next play is randomly chosen from your hand."
-			};
-		}
 		const rankLabel = c.rank === '10' ? '10' : c.rank;
 		return {
 			kind: 'card',
@@ -608,6 +602,7 @@
 		</main>
 
 		<Tutorial />
+		<JesterTray />
 
 		<!-- Mobile slide-up sheet for log / legend -->
 		{#if mobileSheet}

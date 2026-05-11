@@ -2,14 +2,13 @@ import { browser } from '$app/environment';
 import {
 	canPayDamage,
 	checkPlay,
-	clearForcedPlay,
 	damageCheck,
 	newGame,
-	pickForcedPlay,
 	play,
 	sel,
 	suggestDiscards,
 	takeDamage,
+	useJester,
 	type GameConfig,
 	type GameState,
 	type ResolveResult,
@@ -65,7 +64,7 @@ export type LastAction =
 	| { kind: 'play'; result: ResolveResult }
 	| { kind: 'damage'; discarded: number; sum: number }
 	| { kind: 'newGame' }
-	| { kind: 'forced'; cardId: string }
+	| { kind: 'jester'; remaining: number }
 	| null;
 
 function createGameStore() {
@@ -134,9 +133,6 @@ function createGameStore() {
 			else if (a.suit === 'spades') updates.push('spadesShield');
 		}
 		if (result.defeated) updates.push(result.defeated.exact ? 'exactKill' : 'overkill');
-		if (selected.length === 1 && state.hand.find((c) => c.id === selected[0])?.rank === 'JESTER') {
-			updates.push('jesterPlayed');
-		}
 		bumpSeen(updates);
 		selected = [];
 		maybeRecordCompletion(state);
@@ -154,24 +150,20 @@ function createGameStore() {
 		}, 0);
 		lastAction = { kind: 'damage', discarded: cardIds.length, sum };
 		bumpSeen(['damagePhase']);
-		// If a forced-play applies (post-jester), apply it on the next turn automatically.
-		if (state.jesterEnemyChooses) {
-			const forced = pickForcedPlay(state);
-			if (forced) {
-				bumpSeen(['jesterForcedPlay']);
-				lastAction = { kind: 'forced', cardId: forced };
-				selected = [forced];
-				// Auto-commit the forced single-card play
-				const result = play(state, [forced]);
-				let n = result.state;
-				if (n.phase === 'damage') n = damageCheck(n);
-				n = clearForcedPlay(n);
-				state = n;
-				lastAction = { kind: 'play', result: { ...result, state: n } };
-				selected = [];
-			}
-		}
 		maybeRecordCompletion(state);
+		saveState(state);
+	}
+
+	/** Solo Jester ability: discard hand and refill. Usable at the start of play or damage phase. */
+	function activateJester() {
+		if (!state) return;
+		if (state.jestersRemaining <= 0) return;
+		if (state.phase !== 'play' && state.phase !== 'damage') return;
+		const next = useJester(state);
+		state = next;
+		selected = [];
+		lastAction = { kind: 'jester', remaining: next.jestersRemaining };
+		bumpSeen(['jesterAbility']);
 		saveState(state);
 	}
 
@@ -224,6 +216,7 @@ function createGameStore() {
 		replaceSelection,
 		commitPlay,
 		commitDamage,
+		activateJester,
 		ruleSeen
 	};
 }

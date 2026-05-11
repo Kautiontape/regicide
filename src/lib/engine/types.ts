@@ -4,6 +4,8 @@ export type Rank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 
 export interface Card {
 	id: string;
 	suit: Suit | null;
+	/** Solo Jesters are never dealt into the tavern (they're side-of-screen one-shot abilities), but
+	 *  'JESTER' stays in the rank union so multiplayer can reintroduce them without retyping every site. */
 	rank: Rank | 'JESTER';
 	/** Attack/health value used in combat math. Aces=1, 2-10 face value, J=10, Q=15, K=20, Jester=0. */
 	value: number;
@@ -32,7 +34,6 @@ export interface LogEntry {
 	turn: number;
 	kind:
 		| 'play'
-		| 'yield'
 		| 'jester'
 		| 'heal'
 		| 'draw'
@@ -65,10 +66,13 @@ export interface GameState {
 	playedThisBattle: Card[];
 	/** Total shield value accumulated against the current enemy from played spades. Resets when a new royal appears. */
 	shield: number;
-	/** Whether a Jester has cancelled the current royal's immunity. Resets when a new royal appears. */
+	/** Whether a Jester has cancelled the current royal's immunity. Resets when a new royal appears.
+	 *  In solo this is unused — the solo Jester ability does NOT cancel immunity. Kept on the state
+	 *  shape so multiplayer (where deck Jesters return) can drop in without further migration. */
 	immunityCancelled: boolean;
-	/** True after a Jester is played in solo: the next play must be chosen by the "enemy" (random card from hand). */
-	jesterEnemyChooses: boolean;
+	/** Solo Jester ability charges remaining. Each is a one-shot "discard hand, refill to handSize"
+	 *  usable at the start of Step 1 or Step 4. Starts at config.jesters. */
+	jestersRemaining: number;
 	phase: Phase;
 	turn: number;
 	/** Wall-clock timestamp (ms since epoch) when the game began. Used for the match timer

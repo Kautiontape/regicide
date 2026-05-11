@@ -50,9 +50,9 @@
 			id: 'done',
 			title: 'You\'ve got it',
 			touch:
-				'Twelve royals to go. Combos: an Ace + any one card, or same-rank cards summing ≤ 10. Watch for ♠ shields and ♣ doubles. Good luck!',
+				'Twelve royals to go. Combos: an Ace + any one card, or same-rank cards summing ≤ 10. Jesters peek out on the left edge — tap one for a free hand refresh. Good luck!',
 			desktop:
-				'Twelve royals to go. Combos: an Ace + any one card, or same-rank cards summing ≤ 10. Watch for ♠ shields and ♣ doubles. Good luck!'
+				'Twelve royals to go. Combos: an Ace + any one card, or same-rank cards summing ≤ 10. Jesters peek out on the left edge — tap one for a free hand refresh. Good luck!'
 		}
 	];
 

@@ -19,7 +19,8 @@ export interface GameRecord {
 	healed: number;
 	drawn: number;
 	shielded: number;
-	jestersPlayed: number;
+	/** Count of solo Jester abilities activated during the run. 0 = no rescues. */
+	jestersUsed: number;
 	royalsDefeated: number;
 }
 
@@ -63,7 +64,7 @@ function statsFromLog(log: LogEntry[]) {
 	let healed = 0;
 	let drawn = 0;
 	let shielded = 0;
-	let jestersPlayed = 0;
+	let jestersUsed = 0;
 	let royalsDefeated = 0;
 	for (const e of log) {
 		if (e.kind === 'damage') {
@@ -79,13 +80,13 @@ function statsFromLog(log: LogEntry[]) {
 			const m = e.text.match(/healed (\d+)/);
 			if (m) healed += parseInt(m[1], 10);
 		} else if (e.kind === 'draw') {
-			const m = e.text.match(/(?:drew|Drew) (\d+)/);
+			const m = e.text.match(/drew (\d+)/);
 			if (m) drawn += parseInt(m[1], 10);
 		} else if (e.kind === 'shield') {
 			const m = e.text.match(/\+(\d+)/);
 			if (m) shielded += parseInt(m[1], 10);
 		} else if (e.kind === 'jester') {
-			jestersPlayed++;
+			jestersUsed++;
 		}
 	}
 	return {
@@ -95,7 +96,7 @@ function statsFromLog(log: LogEntry[]) {
 		healed,
 		drawn,
 		shielded,
-		jestersPlayed,
+		jestersUsed,
 		royalsDefeated
 	};
 }

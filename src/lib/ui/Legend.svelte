@@ -17,7 +17,8 @@
 			</div>
 		{/each}
 		<div class="text-[11px] text-slate-500 pt-1 border-t border-slate-800/60 mt-1">
-			Royals are immune to their own suit. A Jester (★) cancels immunity for the battle.
+			Royals are immune to their own suit. The Jesters on the screen edge are one-shot
+			rescues — discard your hand and refill (does not cancel immunity).
 		</div>
 	</div>
 </div>

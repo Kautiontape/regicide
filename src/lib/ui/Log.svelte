@@ -10,8 +10,7 @@
 
 	const ICON: Record<LogEntry['kind'], string> = {
 		play: '▶',
-		yield: '⏭',
-		jester: '★',
+		jester: '🃏',
 		heal: '♥',
 		draw: '♦',
 		shield: '♠',

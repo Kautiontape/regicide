@@ -28,12 +28,16 @@ function effectiveAttack(state: GameState): number {
 	return Math.max(0, state.currentEnemy.attack - state.shield);
 }
 
+function rankName(r: 'J' | 'Q' | 'K'): string {
+	return r === 'J' ? 'Jack' : r === 'Q' ? 'Queen' : 'King';
+}
+
 /* ───────── public surface ───────── */
 
 export function newGame(config: GameConfig, seed = Date.now()): GameState {
 	const rand = rng(seed);
 	const shuffle = shuffleWith(rand);
-	const tavern = shuffle(buildTavernDeck(config.jesters));
+	const tavern = shuffle(buildTavernDeck());
 	const castle = buildCastleDeck(shuffle);
 
 	const hand = tavern.splice(0, config.handSize);
@@ -53,7 +57,7 @@ export function newGame(config: GameConfig, seed = Date.now()): GameState {
 		playedThisBattle: [],
 		shield: 0,
 		immunityCancelled: false,
-		jesterEnemyChooses: false,
+		jestersRemaining: config.jesters,
 		phase: 'play',
 		turn: 1,
 		startedAt: Date.now(),
@@ -61,10 +65,6 @@ export function newGame(config: GameConfig, seed = Date.now()): GameState {
 		log,
 		seenRules: {}
 	};
-}
-
-function rankName(r: 'J' | 'Q' | 'K'): string {
-	return r === 'J' ? 'Jack' : r === 'Q' ? 'Queen' : 'King';
 }
 
 /** Validate that a play is currently legal for the engine state. */
@@ -94,19 +94,6 @@ export function play(state: GameState, cardIds: string[]): ResolveResult {
 	if (!combo.ok) throw new Error(combo.reason);
 
 	let s: GameState = { ...state, hand: state.hand.filter((c) => !cardIds.includes(c.id)) };
-
-	// Jester is special: 0 damage, cancel immunity, set forced-play flag.
-	if (combo.kind === 'jester') {
-		s = {
-			...s,
-			playedThisBattle: [...s.playedThisBattle, ...played],
-			immunityCancelled: true,
-			jesterEnemyChooses: true,
-			phase: 'damage'
-		};
-		s = appendLog(s, { kind: 'jester', text: 'Jester played: immunity cancelled.' });
-		return { state: s, activations: [], damageDealt: 0, defeated: null };
-	}
 
 	const total = combo.totalValue;
 	const enemy = s.currentEnemy;
@@ -145,7 +132,6 @@ export function play(state: GameState, cardIds: string[]): ResolveResult {
 	if (remaining <= 0) {
 		const exact = remaining === 0;
 		s = defeatRoyal(s, exact);
-		// Defeating skips counter-attack. If still alive after advancing, return to play.
 		return { state: s, activations, damageDealt: damage, defeated: { exact } };
 	}
 
@@ -156,24 +142,23 @@ export function play(state: GameState, cardIds: string[]): ResolveResult {
 
 function applyPower(state: GameState, suit: Suit, value: number): GameState {
 	if (suit === 'hearts') {
-		// Move up to `value` cards from top of discard back to bottom of tavern (shuffled).
-		const take = Math.min(value, state.discardPile.length);
-		if (take === 0) return state;
-		const fromTop = state.discardPile.slice(-take);
-		const remaining = state.discardPile.slice(0, state.discardPile.length - take);
-		// Shuffle the moved cards using a fresh draw from the seed-derived rand. For simplicity and
-		// determinism per state, derive a one-shot rng from current state size.
+		// Official rule: shuffle the entire discard pile, then count out `value` cards face-down
+		// and place them under the tavern deck. The remainder returns to the discard pile.
+		if (state.discardPile.length === 0) return state;
 		const rand = rng(
 			(state.config.seed ?? 1) +
 				state.turn * 131 +
 				state.discardPile.length * 17 +
 				state.tavernDeck.length
 		);
-		const shuffled = shuffleWith(rand)(fromTop);
+		const shuffled = shuffleWith(rand)(state.discardPile);
+		const take = Math.min(value, shuffled.length);
+		const moved = shuffled.slice(0, take);
+		const remaining = shuffled.slice(take);
 		return {
 			...state,
 			discardPile: remaining,
-			tavernDeck: [...shuffled, ...state.tavernDeck], // bottom = front (we draw from end)
+			tavernDeck: [...moved, ...state.tavernDeck], // bottom = front (we draw from end)
 			log: [...state.log, { turn: state.turn, kind: 'heal', text: `♥ healed ${take} cards back into the deck.` }]
 		};
 	}
@@ -215,8 +200,7 @@ function defeatRoyal(state: GameState, exact: boolean): GameState {
 		discardPile: newDiscard,
 		playedThisBattle: [],
 		shield: 0,
-		immunityCancelled: false,
-		jesterEnemyChooses: state.jesterEnemyChooses // a defeat doesn't cancel forced play
+		immunityCancelled: false
 	};
 	const royalCard: Card = { id: enemy.id, suit: enemy.suit, rank: enemy.rank, value: enemy.value };
 	if (exact) {
@@ -236,9 +220,8 @@ function defeatRoyal(state: GameState, exact: boolean): GameState {
 		);
 	}
 	const next = s.castleDeck[0];
-	// Defeating a royal still ends the player's turn — draw back up to hand size before the
-	// next royal so a defeating play doesn't soft-lock when the player emptied their hand.
-	s = refillHand(s);
+	// Per official rules, the defeating player skips Step 4 and begins a new turn — no draw.
+	// Hand stays as-is (drawing only happens via the ♦ Diamonds power or the Jester ability).
 	s = {
 		...s,
 		castleDeck: s.castleDeck.slice(1),
@@ -246,10 +229,11 @@ function defeatRoyal(state: GameState, exact: boolean): GameState {
 		phase: 'play',
 		turn: s.turn + 1
 	};
-	return appendLog(s, {
+	s = appendLog(s, {
 		kind: 'newRoyal',
 		text: `${rankName(next.rank)} of ${next.suit} appears (HP ${next.maxHealth}, ATK ${next.attack}).`
 	});
+	return playStartCheck(s);
 }
 
 /** During the damage phase, discard cards summing ≥ effectiveAttack(). */
@@ -259,7 +243,6 @@ export function takeDamage(state: GameState, discardIds: string[]): GameState {
 	const dmg = effectiveAttack(state);
 
 	if (dmg === 0) {
-		// Free turn — no discard required, but allow empty.
 		if (discardIds.length > 0) throw new Error('No damage to take; discard not allowed.');
 		return endTurn(state);
 	}
@@ -330,27 +313,12 @@ export function suggestDiscards(state: GameState): string[] {
 	return best ? best.ids : hand.map((c) => c.id);
 }
 
-/** Draw from the tavern (top = end of array) up to the configured hand size. */
-function refillHand(state: GameState): GameState {
-	const limit = state.config.handSize;
-	const need = Math.max(0, limit - state.hand.length);
-	const draw = Math.min(need, state.tavernDeck.length);
-	if (draw <= 0) return state;
-	const drawn = state.tavernDeck.slice(-draw);
-	const remaining = state.tavernDeck.slice(0, state.tavernDeck.length - draw);
-	return {
-		...state,
-		tavernDeck: remaining,
-		hand: [...state.hand, ...drawn],
-		log: [...state.log, { turn: state.turn, kind: 'draw', text: `Drew ${draw} to refill.` }]
-	};
-}
-
 function endTurn(state: GameState): GameState {
-	// Standard Regicide: draw back up to hand size at end of turn. Without this, discarding
-	// everything to cover damage soft-locks the next turn (no cards in hand to play).
-	const refilled = refillHand(state);
-	return { ...refilled, phase: 'play', turn: refilled.turn + 1 };
+	// Official Regicide: no draw at end of turn. Drawing happens only via the ♦ Diamonds power
+	// (and, in solo, via the Jester ability). An empty hand is allowed; the lose check at the
+	// start of the next play phase will fire if the player can't continue.
+	const advanced: GameState = { ...state, phase: 'play', turn: state.turn + 1 };
+	return playStartCheck(advanced);
 }
 
 /** Force a check at the start of damage phase: if hand sum < attack, the game is lost. */
@@ -359,23 +327,55 @@ export function damageCheck(state: GameState): GameState {
 	if (canPayDamage(state)) return state;
 	const enemy = state.currentEnemy;
 	if (!enemy) return state;
+	// In solo, a Jester ability can refill the hand at the start of Step 4. So losing requires
+	// having no Jesters left AND being unable to cover the damage even after using them.
+	if (state.jestersRemaining > 0) return state;
 	const dmg = effectiveAttack(state);
 	let s = appendLog(state, { kind: 'lose', text: `Cannot cover ${dmg} damage from ${rankName(enemy.rank)} of ${enemy.suit}.` });
 	s = { ...s, phase: 'lost', endedAt: Date.now() };
 	return s;
 }
 
-/** Pick a forced card (post-Jester in solo). Uses a deterministic-ish hash of state. */
-export function pickForcedPlay(state: GameState): string | null {
-	if (!state.jesterEnemyChooses || state.hand.length === 0) return null;
-	const r = rng((state.config.seed ?? 1) + state.turn * 977 + state.hand.length);
-	const idx = Math.floor(r() * state.hand.length);
-	return state.hand[idx].id;
+/** Check at the start of the play phase: per the rules, the player loses if they cannot play
+ *  a card or yield on their turn. Solo has no yield, so an empty hand with no Jester ability
+ *  remaining is an automatic loss. */
+function playStartCheck(state: GameState): GameState {
+	if (state.phase !== 'play') return state;
+	if (state.hand.length > 0) return state;
+	if (state.jestersRemaining > 0) return state;
+	const enemy = state.currentEnemy;
+	if (!enemy) return state;
+	let s = appendLog(state, { kind: 'lose', text: 'No cards left to play and no Jesters remaining.' });
+	s = { ...s, phase: 'lost', endedAt: Date.now() };
+	return s;
 }
 
-/** Clear the forced-play flag after the forced play resolves. */
-export function clearForcedPlay(state: GameState): GameState {
-	return { ...state, jesterEnemyChooses: false };
+/** Solo Jester ability: discard your current hand and refill to handSize from the tavern.
+ *  Does NOT cancel enemy immunity. Does NOT count as drawing for the ♦ Diamonds immunity rule.
+ *  Usable at the start of Step 1 (play phase) or Step 4 (damage phase). */
+export function useJester(state: GameState): GameState {
+	if (state.jestersRemaining <= 0) throw new Error('No Jesters remaining.');
+	if (state.phase !== 'play' && state.phase !== 'damage') throw new Error('Jester only usable in play or damage phase.');
+
+	const limit = state.config.handSize;
+	const dumped = state.hand;
+	const tavernAfterDiscard = state.tavernDeck;
+	const drawCount = Math.min(limit, tavernAfterDiscard.length);
+	const drawn = drawCount > 0 ? tavernAfterDiscard.slice(-drawCount) : [];
+	const tavernRemaining = drawCount > 0 ? tavernAfterDiscard.slice(0, tavernAfterDiscard.length - drawCount) : tavernAfterDiscard;
+
+	let s: GameState = {
+		...state,
+		hand: drawn,
+		discardPile: [...state.discardPile, ...dumped],
+		tavernDeck: tavernRemaining,
+		jestersRemaining: state.jestersRemaining - 1
+	};
+	s = appendLog(s, {
+		kind: 'jester',
+		text: `Jester ability used — discarded ${dumped.length} card${dumped.length === 1 ? '' : 's'}, drew ${drawn.length}. (${s.jestersRemaining} left)`
+	});
+	return s;
 }
 
 /** Public read helpers used by the UI. */

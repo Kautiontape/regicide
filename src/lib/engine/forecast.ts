@@ -71,25 +71,6 @@ export function forecast(state: GameState, cardIds: string[]): Forecast | null {
 
 	const enemy = state.currentEnemy;
 
-	// Jester preview.
-	if (combo.kind === 'jester') {
-		// No damage, no powers. Cancels immunity (effect lasts until battle ends — surfaced separately in UI).
-		const handSize = state.hand.length - 1; // minus the played jester
-		return {
-			combo,
-			rawDamage: 0,
-			damage: 0,
-			powers: [],
-			enemyHpAfter: enemy.maxHealth - enemy.damageTaken,
-			defeated: null,
-			newShield: state.shield,
-			newEnemyAtk: Math.max(0, enemy.attack - state.shield),
-			newHandSize: handSize,
-			newDiscardSize: state.discardPile.length,
-			newTavernSize: state.tavernDeck.length
-		};
-	}
-
 	const total = combo.totalValue;
 	const suitsPlayed = new Set(cards.map((c) => c.suit).filter((x): x is Suit => !!x));
 	const immunityActive = enemy.suit && !state.immunityCancelled;

@@ -20,7 +20,7 @@
 		healed: number;
 		drawn: number;
 		shielded: number;
-		jestersPlayed: number;
+		jestersUsed: number;
 	};
 
 	function deriveStats(s: GameState): Stats {
@@ -30,7 +30,7 @@
 		let healed = 0;
 		let drawn = 0;
 		let shielded = 0;
-		let jestersPlayed = 0;
+		let jestersUsed = 0;
 		for (const e of s.log) {
 			if (e.kind === 'damage') {
 				const m = e.text.match(/Dealt (\d+) damage/);
@@ -45,14 +45,14 @@
 				const m = e.text.match(/healed (\d+)/);
 				if (m) healed += parseInt(m[1], 10);
 			} else if (e.kind === 'draw') {
-				// "♦ drew N." (suit power) and "Drew N to refill." (end-of-turn refill)
-				const m = e.text.match(/(?:drew|Drew) (\d+)/);
+				// "♦ drew N." — only ♦ Diamonds draws cards now (no end-of-turn refill).
+				const m = e.text.match(/drew (\d+)/);
 				if (m) drawn += parseInt(m[1], 10);
 			} else if (e.kind === 'shield') {
 				const m = e.text.match(/\+(\d+)/);
 				if (m) shielded += parseInt(m[1], 10);
 			} else if (e.kind === 'jester') {
-				jestersPlayed++;
+				jestersUsed++;
 			}
 		}
 		return {
@@ -63,11 +63,24 @@
 			healed,
 			drawn,
 			shielded,
-			jestersPlayed
+			jestersUsed
 		};
 	}
 
 	const stats = $derived(deriveStats(state));
+
+	// Bronze/Silver/Gold tier from the official solo rules:
+	//   0 Jesters used = Gold, 1 = Silver, 2 = Bronze.
+	// We only show a tier when the player played the canonical 2-Jester variant — fewer starting
+	// Jesters changes the difficulty floor and makes the tier comparison meaningless.
+	type Tier = { name: string; color: string; ring: string };
+	const tier = $derived<Tier | null>(deriveTier(state, stats.jestersUsed));
+	function deriveTier(s: GameState, used: number): Tier | null {
+		if (s.config.jesters !== 2) return null;
+		if (used === 0) return { name: 'Gold Victory', color: 'text-amber-300', ring: 'ring-amber-400/60' };
+		if (used === 1) return { name: 'Silver Victory', color: 'text-slate-200', ring: 'ring-slate-300/50' };
+		return { name: 'Bronze Victory', color: 'text-orange-300', ring: 'ring-orange-400/50' };
+	}
 
 	// 24 confetti particles with deterministic offsets/colors so the animation is repeatable
 	// and not too noisy. Mostly amber/blue/red/emerald to match the game's palette.
@@ -112,7 +125,15 @@
 			<div class="text-4xl sm:text-5xl font-bold text-amber-300 tracking-tight victory-pop">
 				Victory
 			</div>
-			<div class="text-sm sm:text-base text-slate-300 mt-1">
+			{#if tier}
+				<div
+					class="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-slate-900/70 ring-1 {tier.ring} {tier.color} text-xs sm:text-sm font-semibold tracking-wide"
+				>
+					<span aria-hidden="true">★</span>
+					<span>{tier.name}</span>
+				</div>
+			{/if}
+			<div class="text-sm sm:text-base text-slate-300 mt-2">
 				All 12 royals defeated in {stats.turns} turn{stats.turns === 1 ? '' : 's'}
 				<span class="text-slate-500">·</span>
 				<span class="font-mono tabular-nums text-slate-200">{formatDuration(elapsedMs)}</span>
@@ -146,9 +167,9 @@
 			</div>
 		</div>
 
-		{#if stats.jestersPlayed > 0}
+		{#if stats.jestersUsed > 0}
 			<div class="text-xs text-slate-400">
-				{stats.jestersPlayed} jester{stats.jestersPlayed === 1 ? '' : 's'} played
+				{stats.jestersUsed} jester{stats.jestersUsed === 1 ? '' : 's'} used
 			</div>
 		{/if}
 
