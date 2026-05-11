@@ -28,7 +28,7 @@
 </script>
 
 <div
-	class="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 overflow-hidden bg-slate-950/85 backdrop-blur-sm"
+	class="fixed inset-0 z-40 flex flex-col items-center justify-center p-6 overflow-hidden bg-slate-950/85 backdrop-blur-sm"
 	role="status"
 	aria-live="polite"
 >
@@ -67,10 +67,12 @@
 					<span>Max defense (full hand)</span>
 					<span class="font-mono text-slate-200 font-bold">{handTotal}</span>
 				</div>
-				<div class="flex justify-between text-red-300 border-t border-slate-700 pt-1.5 mt-0.5">
-					<span class="font-semibold">Short by</span>
-					<span class="font-mono font-bold">{shortBy}</span>
-				</div>
+				{#if shortBy > 0}
+					<div class="flex justify-between text-red-300 border-t border-slate-700 pt-1.5 mt-0.5">
+						<span class="font-semibold">Short by</span>
+						<span class="font-mono font-bold">{shortBy}</span>
+					</div>
+				{/if}
 			</div>
 		{/if}
 

@@ -94,6 +94,17 @@ function createGameStore() {
 		saveState(null);
 	}
 
+	/** Surrender the current run: transition into the 'lost' phase so the Defeat overlay
+	 * surfaces with the final damage math instead of dumping the player back to setup. */
+	function concede() {
+		if (!state) return;
+		if (state.phase === 'won' || state.phase === 'lost') return;
+		state = { ...state, phase: 'lost', endedAt: Date.now() };
+		selected = [];
+		maybeRecordCompletion(state);
+		saveState(state);
+	}
+
 	function toggleSelect(cardId: string) {
 		if (!state) return;
 		if (state.phase !== 'play' && state.phase !== 'damage') return;
@@ -211,6 +222,7 @@ function createGameStore() {
 		init,
 		start,
 		abandon,
+		concede,
 		toggleSelect,
 		clearSelection,
 		replaceSelection,
