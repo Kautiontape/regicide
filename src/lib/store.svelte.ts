@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import {
 	canPayDamage,
+	checkCombo,
 	checkPlay,
 	damageCheck,
 	newGame,
@@ -128,6 +129,8 @@ function createGameStore() {
 		if (selected.length === 0) return;
 		const check = checkPlay(state, selected);
 		if (!check.ok) return;
+		const playedCards = state.hand.filter((c) => selected.includes(c.id));
+		const comboCheck = checkCombo(playedCards);
 		const result = play(state, selected);
 		// If the enemy survived, immediately compute damage check.
 		let next = result.state;
@@ -142,6 +145,10 @@ function createGameStore() {
 			else if (a.suit === 'diamonds') updates.push('diamondsDraw');
 			else if (a.suit === 'clubs') updates.push('clubsDouble');
 			else if (a.suit === 'spades') updates.push('spadesShield');
+		}
+		if (comboCheck.ok) {
+			if (comboCheck.kind === 'companion') updates.push('companion');
+			else if (comboCheck.kind === 'sameRank') updates.push('sameRankCombo');
 		}
 		if (result.defeated) updates.push(result.defeated.exact ? 'exactKill' : 'overkill');
 		bumpSeen(updates);

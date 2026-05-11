@@ -14,19 +14,43 @@
 
 	const DATE_FMT = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 
-	let tutorial = $state(true);
 	let showHistory = $state(false);
 	let history = $state(loadHistory());
+	let confirmReset = $state(false);
 	const summary = $derived(summarize(history));
 
+	// First-time player = no recorded games AND no prior tutorial dismissal. The two checks
+	// are belt-and-braces: clearing history doesn't re-trigger the tutorial nag, and skipping
+	// the tutorial without ever finishing a game also doesn't.
+	let firstTime = $state(true);
 	$effect(() => {
 		if (typeof localStorage === 'undefined') return;
-		// Default the tutorial to off if the player has dismissed it before.
-		if (localStorage.getItem('regicide:tutorialDone:v1') === '1') tutorial = false;
+		const tutorialDone = localStorage.getItem('regicide:tutorialDone:v1') === '1';
+		firstTime = !tutorialDone && history.length === 0;
 	});
 
-	function start() {
+	function start(tutorial: boolean) {
+		// Mark the tutorial seen the moment the player commits to a path. Skipping counts the
+		// same as completing — they've made an informed choice and shouldn't be nagged again.
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('regicide:tutorialDone:v1', '1');
+		}
 		game.start({ jesters: STARTING_JESTERS, handSize: 8, tutorial });
+	}
+
+	function resetAllData() {
+		if (typeof localStorage === 'undefined') return;
+		// Wipe every key the app owns. Iterating instead of removing known keys means future
+		// keys (e.g. settings, daily-seed bookmarks) get cleaned up here automatically too.
+		const toRemove: string[] = [];
+		for (let i = 0; i < localStorage.length; i++) {
+			const key = localStorage.key(i);
+			if (key && key.startsWith('regicide:')) toRemove.push(key);
+		}
+		for (const key of toRemove) localStorage.removeItem(key);
+		// Reload so every component (store, tutorial state, history list) re-initialises from
+		// the now-empty storage instead of holding stale in-memory copies.
+		location.reload();
 	}
 </script>
 
@@ -35,41 +59,79 @@
 		<h1 class="text-4xl font-bold tracking-tight text-white mb-1">Regicide</h1>
 		<p class="text-slate-400 mb-6">Solo. A standard 52-card deck. Twelve royals. Don't die.</p>
 
-		<div class="space-y-5">
-			<label class="flex items-center gap-2 text-sm text-slate-200 cursor-pointer select-none">
-				<input
-					type="checkbox"
-					bind:checked={tutorial}
-					class="w-4 h-4 rounded accent-amber-400"
-				/>
-				<span>Tutorial mode <span class="text-slate-500 text-xs">— guided callouts on the first 2-3 turns</span></span>
-			</label>
-
-			<button
-				type="button"
-				onclick={start}
-				class="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold py-3 rounded-lg transition-colors"
-			>
-				Begin
-			</button>
+		<div class="space-y-3">
+			{#if firstTime}
+				<button
+					type="button"
+					onclick={() => start(true)}
+					class="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold py-3 rounded-lg transition-colors"
+				>
+					Start Tutorial
+				</button>
+				<button
+					type="button"
+					onclick={() => start(false)}
+					class="w-full text-sm text-slate-400 hover:text-amber-300 underline-offset-2 hover:underline py-1"
+				>
+					Skip tutorial and play
+				</button>
+			{:else}
+				<button
+					type="button"
+					onclick={() => start(false)}
+					class="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold py-3 rounded-lg transition-colors"
+				>
+					Begin
+				</button>
+				<button
+					type="button"
+					onclick={() => start(true)}
+					class="w-full text-xs text-slate-500 hover:text-amber-300 underline-offset-2 hover:underline py-1"
+				>
+					Replay tutorial
+				</button>
+			{/if}
 		</div>
 
 		<div class="mt-6 text-xs text-slate-500 leading-relaxed border-t border-slate-800 pt-4">
-			<p class="mb-1">First turn? Play a single card to attack the Jack. Suits do things:</p>
-			<p>♥ heal · ♦ draw · ♣ double damage · ♠ shield. Tooltips will explain as you go.</p>
+			<p class="mb-1">Solo. Twelve royals stand between you and the throne.</p>
+			<p>♥ heal · ♦ draw · ♣ double damage · ♠ shield.</p>
 		</div>
+
+		{#if summary.wins === 0 && !firstTime}
+			<!-- Returning player with no wins yet — surface the reset on its own so the only way
+				 to recover from a corrupted state isn't to dig into devtools. -->
+			<div class="mt-6 border-t border-slate-800 pt-4 flex justify-end">
+				<button
+					type="button"
+					onclick={() => (confirmReset = true)}
+					class="text-xs text-slate-500 hover:text-red-300 underline-offset-2 hover:underline"
+				>
+					reset all data
+				</button>
+			</div>
+		{/if}
 
 		{#if summary.wins > 0}
 			<div class="mt-6 border-t border-slate-800 pt-4">
 				<div class="flex items-center justify-between mb-3">
 					<div class="text-sm font-medium text-slate-200">History</div>
-					<button
-						type="button"
-						onclick={() => (showHistory = !showHistory)}
-						class="text-xs text-slate-400 hover:text-amber-300 underline-offset-2 hover:underline"
-					>
-						{showHistory ? 'hide' : `${history.length} game${history.length === 1 ? '' : 's'}`}
-					</button>
+					<div class="flex items-center gap-3">
+						<button
+							type="button"
+							onclick={() => (confirmReset = true)}
+							class="text-xs text-slate-500 hover:text-red-300 underline-offset-2 hover:underline"
+						>
+							reset
+						</button>
+						<button
+							type="button"
+							onclick={() => (showHistory = !showHistory)}
+							class="text-xs text-slate-400 hover:text-amber-300 underline-offset-2 hover:underline"
+						>
+							{showHistory ? 'hide' : `${history.length} game${history.length === 1 ? '' : 's'}`}
+						</button>
+					</div>
 				</div>
 				<div class="grid grid-cols-3 gap-2 text-xs">
 					<div class="bg-slate-800/60 rounded p-2">
@@ -124,3 +186,45 @@
 		{/if}
 	</div>
 </div>
+
+{#if confirmReset}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="confirm-reset-title"
+		tabindex="-1"
+		onclick={() => (confirmReset = false)}
+	>
+		<div
+			class="max-w-sm w-full bg-slate-900 border border-slate-700 rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col gap-4"
+			onclick={(e) => e.stopPropagation()}
+			role="presentation"
+		>
+			<div>
+				<div id="confirm-reset-title" class="text-lg font-bold text-amber-300">Reset all data?</div>
+				<div class="text-sm text-slate-300 mt-1">
+					Wipes your win history, tutorial progress, and any in-progress game. You'll see the
+					tutorial entry next time. This cannot be undone.
+				</div>
+			</div>
+			<div class="flex gap-2 justify-end">
+				<button
+					type="button"
+					onclick={() => (confirmReset = false)}
+					class="px-4 py-2 rounded-lg text-sm bg-slate-800 hover:bg-slate-700 text-slate-200"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					onclick={resetAllData}
+					class="px-4 py-2 rounded-lg text-sm bg-red-500 hover:bg-red-400 text-white font-semibold"
+				>
+					Reset
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

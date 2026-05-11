@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { game } from '$lib/store.svelte';
 	import { checkCombo, forecast, RULE_TEXT, type Card as CardType, type RuleId } from '$lib/engine';
+	import { tutorialAdvice } from '$lib/tutorial';
 	import Card from './Card.svelte';
 	import Royal from './Royal.svelte';
 	import PhaseStrip from './PhaseStrip.svelte';
@@ -11,6 +12,7 @@
 	import Legend from './Legend.svelte';
 	import Tutorial from './Tutorial.svelte';
 	import JesterTray from './JesterTray.svelte';
+	import JesterIcon from './JesterIcon.svelte';
 	import PilePeek from './PilePeek.svelte';
 	import InfoSlot, { type InfoKind } from './InfoSlot.svelte';
 	import Victory from './Victory.svelte';
@@ -90,6 +92,17 @@
 			? new Set(game.suggestedDiscards)
 			: new Set<string>()
 	);
+
+	// Tutorial recommendations: amber pulsing outline on cards the script wants the player
+	// to act on right now. Only IDs actually present in hand survive — the helper may name
+	// cards that haven't been drawn yet (e.g. 4♥ at the start of T2 before the diamond draw).
+	const advice = $derived(gs ? tutorialAdvice(gs) : { play: [], discard: [] });
+	const recommendedSet = $derived(() => {
+		if (!gs) return new Set<string>();
+		const handIds = new Set(gs.hand.map((c) => c.id));
+		const ids = gs.phase === 'play' ? advice.play : gs.phase === 'damage' ? advice.discard : [];
+		return new Set(ids.filter((id) => handIds.has(id)));
+	});
 
 	// During play, cards matching the royal's still-active immune suit won't trigger powers.
 	const suppressedSuit = $derived(
@@ -539,50 +552,79 @@
 								New game
 							</button>
 						{/if}
-						<!-- Hand size — sits to the right of the action button on desktop. Mobile
-							 already shows the count in the top stats strip. -->
-						<div class="hidden md:flex items-baseline gap-1 text-xs text-slate-400 ml-1" aria-label="Hand size">
+						<!-- Hand size — sits to the right of the action button so the count is
+							 visible at the moment the player is choosing what to play. Top stats
+							 strip is far enough away that you'd lose your eyeline. -->
+						<div class="flex items-baseline gap-1 text-xs text-slate-400 ml-1" aria-label="Hand size">
 							<span class="font-bold text-slate-200 text-base leading-none">{gs.hand.length}</span>
 							<span class="leading-none">/ {gs.config.handSize}</span>
 						</div>
 					</div>
 
 					<div class="w-full md:w-auto relative">
-						<!-- Hand container: horizontal scroll on overflow.
-							 pt-3 leaves room for the -translate-y-2 lift on selected cards
-							 (overflow-x-auto clips both axes per CSS spec). -->
-						<div class="flex items-end gap-2 sm:gap-3 justify-start md:justify-center pt-3 pb-2 sm:pt-3 sm:pb-8 overflow-x-auto md:overflow-visible px-3 md:px-0 scroll-smooth hand-scroll snap-x">
-							{#each sortedHand as c, i (c.id)}
-								{@const isSel = selected.includes(c.id)}
-								{@const inactive = gs.phase === 'play' && !isAddable(c)}
-								<div class="flex flex-col items-center gap-1 flex-shrink-0 snap-start">
-									<Card
-										card={c}
-										selected={isSel}
-										disabled={gs.phase !== 'play' && gs.phase !== 'damage'}
-										dim={inactive}
-										suppressed={c.suit !== null &&
-											c.suit === suppressedSuit &&
-											c.rank !== 'JESTER'}
-										emphasis={!isSel && suggestedSet.has(c.id) ? 'suggest' : null}
-										onclick={() => selectCard(c)}
-										onhover={(t) => {
-											// Hover/long-press on a hand card writes its description into the info slot.
-											if (t) setOverride(describeCard(c), 5000);
-											else if (infoOverride?.kind === 'card') clearOverride();
-										}}
-									/>
-									{#if i < 9}
-										<kbd
-											class="hidden md:block text-[10px] font-mono px-1.5 py-0.5 rounded border {isSel
-												? 'border-amber-400/70 text-amber-300'
-												: 'border-slate-700 text-slate-500'}"
-										>
-											{i + 1}
-										</kbd>
-									{/if}
+						<!-- Hand container: horizontal scroll on overflow. pt-5 leaves room for both
+							 the -translate-y-2 lift on selected cards AND the tutorial recommendation
+							 pulse halo (overflow-x-auto clips overflow-y too per CSS spec, so any
+							 box-shadow extending above the cards needs to fit in this padding). -->
+						<div class="flex items-end gap-2 sm:gap-3 justify-start md:justify-center pt-5 pb-2 sm:pt-5 sm:pb-8 overflow-x-auto md:overflow-visible px-3 md:px-0 scroll-smooth hand-scroll snap-x">
+							{#if sortedHand.length === 0 && (gs.phase === 'play' || gs.phase === 'damage') && gs.jestersRemaining > 0}
+								<!-- Empty-hand placeholder. We replace the hand row with a Jester-shaped slot
+									 because an invisible empty area gave players no signal about what to do
+									 next when they ran out of cards but still had a Jester to spend. -->
+								<div class="flex flex-col items-center gap-2 mx-auto">
+									<button
+										type="button"
+										onclick={() => (jesterOpen = true)}
+										aria-label="Hand empty — use a Jester to deal a fresh hand"
+										class="empty-jester-card w-16 h-24 sm:w-20 sm:h-28 rounded-lg shadow-md font-semibold cursor-pointer relative bg-gradient-to-br from-purple-500 to-pink-500 text-white"
+									>
+										<div class="absolute top-1 left-1 text-[10px] font-bold tracking-wide">JEST</div>
+										<div class="absolute bottom-1 right-1 text-[10px] font-bold tracking-wide rotate-180">JEST</div>
+										<div class="absolute inset-0 flex items-center justify-center text-amber-200">
+											<JesterIcon size="2.25rem" />
+										</div>
+									</button>
+									<div class="text-xs text-slate-300 text-center max-w-[14rem]">
+										Hand is empty. Tap to use a Jester and deal a fresh hand.
+									</div>
 								</div>
-							{/each}
+							{:else}
+								{#each sortedHand as c, i (c.id)}
+									{@const isSel = selected.includes(c.id)}
+									{@const inactive = gs.phase === 'play' && !isAddable(c)}
+									<div class="flex flex-col items-center gap-1 flex-shrink-0 snap-start">
+										<Card
+											card={c}
+											selected={isSel}
+											disabled={gs.phase !== 'play' && gs.phase !== 'damage'}
+											dim={inactive}
+											suppressed={c.suit !== null &&
+												c.suit === suppressedSuit &&
+												c.rank !== 'JESTER'}
+											emphasis={!isSel && recommendedSet().has(c.id)
+											? 'recommend'
+											: !isSel && suggestedSet.has(c.id)
+												? 'suggest'
+												: null}
+											onclick={() => selectCard(c)}
+											onhover={(t) => {
+												// Hover/long-press on a hand card writes its description into the info slot.
+												if (t) setOverride(describeCard(c), 5000);
+												else if (infoOverride?.kind === 'card') clearOverride();
+											}}
+										/>
+										{#if i < 9}
+											<kbd
+												class="hidden md:block text-[10px] font-mono px-1.5 py-0.5 rounded border {isSel
+													? 'border-amber-400/70 text-amber-300'
+													: 'border-slate-700 text-slate-500'}"
+											>
+												{i + 1}
+											</kbd>
+										{/if}
+									</div>
+								{/each}
+							{/if}
 						</div>
 					</div>
 				</div>

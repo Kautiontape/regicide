@@ -79,3 +79,71 @@ export function shuffleWith(rand: () => number) {
 		return out;
 	};
 }
+
+/* ───────── tutorial mode ───────── */
+
+/** Cards dealt as the player's opening hand in tutorial mode. Order in this list = hand
+ *  index, but the UI re-sorts the hand for display. The script teaches:
+ *    T1 5♠ → shield, T2 4♦ → draw, T3 3♣ → double, T4 A♠+4♥ → companion + immunity + exact kill.
+ *  5♣ exists as an obvious single-card discard for T1 (sum 5, count 1 — beats any combo). */
+const TUTORIAL_HAND: Array<[Suit, Rank]> = [
+	['spades', '5'],
+	['diamonds', '4'],
+	['clubs', '3'],
+	['spades', 'A'],
+	['clubs', '5'],
+	['clubs', '6'],
+	['diamonds', '7'],
+	['clubs', '8']
+];
+
+/** Cards reserved at the top of the tavern (drawn first). T2 plays 4♦ which draws min(4, 8-5, ..) = 3
+ *  cards — these are the three. The 4♥ slot here is the card the script tells the player to pair
+ *  with A♠ on T4. The two 5s give the auto-pick algorithm a clean single-card discard target on
+ *  T2 and T3 so it doesn't accidentally consume A♠ or 4♥. */
+const TUTORIAL_TAVERN_TOP: Array<[Suit, Rank]> = [
+	['diamonds', '5'],
+	['hearts', '5'],
+	['hearts', '4']
+];
+
+/** Build the tutorial tavern: opening hand at the bottom (positions 0-7, spliced into the
+ *  player's hand by newGame), filler in the middle, scripted draws at the top (drawn first). */
+export function buildTutorialTavern(): Card[] {
+	const reserved = new Set<string>();
+	const handCards: Card[] = TUTORIAL_HAND.map(([suit, rank]) => {
+		const id = cardId(suit, rank);
+		reserved.add(id);
+		return { id, suit, rank, value: rankValue(rank) };
+	});
+	const topCards: Card[] = TUTORIAL_TAVERN_TOP.map(([suit, rank]) => {
+		const id = cardId(suit, rank);
+		reserved.add(id);
+		return { id, suit, rank, value: rankValue(rank) };
+	});
+	const filler = buildTavernDeck().filter((c) => !reserved.has(c.id));
+	return [...handCards, ...filler, ...topCards];
+}
+
+/** Tutorial castle: Jack of Hearts on top (so it's the first enemy and gives us the
+ *  hearts-immunity teaching moment in T4), remaining royals in a deterministic order so
+ *  replays of the tutorial behave identically. */
+export function buildTutorialCastle(): Royal[] {
+	const order: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
+	const ranks: Array<'J' | 'Q' | 'K'> = ['J', 'Q', 'K'];
+	const royals: Royal[] = [];
+	for (const rank of ranks) {
+		for (const suit of order) {
+			royals.push({
+				id: cardId(suit, rank as Rank),
+				suit,
+				rank,
+				value: rankValue(rank),
+				attack: royalAttack(rank),
+				maxHealth: royalHealth(rank),
+				damageTaken: 0
+			});
+		}
+	}
+	return royals;
+}
