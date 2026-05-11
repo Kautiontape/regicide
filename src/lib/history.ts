@@ -5,7 +5,8 @@ const HISTORY_KEY = 'regicide:history:v1';
 const MAX_RECORDS = 200;
 
 export interface GameRecord {
-	outcome: 'won' | 'lost';
+	// Only victories are recorded — losses are not persisted by design.
+	outcome: 'won';
 	jesters: 0 | 1 | 2;
 	handSize: number;
 	turns: number;
@@ -24,11 +25,20 @@ export interface GameRecord {
 	royalsDefeated: number;
 }
 
+export type Tier = 'gold' | 'silver' | 'bronze';
+
+/** Bronze/Silver/Gold tier from the official solo rules: 0 Jesters used = Gold, 1 = Silver,
+ *  2 = Bronze. Only meaningful when the player ran the canonical 2-Jester variant — fewer
+ *  starting Jesters changes the difficulty floor and makes the tier comparison meaningless. */
+export function tierFor(record: Pick<GameRecord, 'jesters' | 'jestersUsed'>): Tier | null {
+	if (record.jesters !== 2) return null;
+	if (record.jestersUsed === 0) return 'gold';
+	if (record.jestersUsed === 1) return 'silver';
+	return 'bronze';
+}
+
 export interface HistorySummary {
-	total: number;
 	wins: number;
-	losses: number;
-	winRate: number;
 	bestTurns: number | null;
 	bestTimeMs: number | null;
 	totalTimeMs: number;
@@ -41,7 +51,10 @@ export function loadHistory(): GameRecord[] {
 		if (!raw) return [];
 		const parsed = JSON.parse(raw);
 		if (!Array.isArray(parsed)) return [];
-		return parsed as GameRecord[];
+		// Filter legacy loss records — we only surface victories now.
+		return (parsed as Array<GameRecord & { outcome: string }>).filter(
+			(r) => r.outcome === 'won'
+		) as GameRecord[];
 	} catch {
 		return [];
 	}
@@ -101,15 +114,15 @@ function statsFromLog(log: LogEntry[]) {
 	};
 }
 
-/** Build and persist a record from a completed game. Returns the record (or null if the
- *  game isn't actually completed). */
+/** Build and persist a record from a completed game. Returns the record, or null if the
+ *  game isn't a victory — losses are intentionally not tracked. */
 export function recordCompletedGame(state: GameState): GameRecord | null {
-	if (state.phase !== 'won' && state.phase !== 'lost') return null;
+	if (state.phase !== 'won') return null;
 	const completedAt = state.endedAt ?? Date.now();
 	const elapsedMs = Math.max(0, completedAt - state.startedAt);
 	const stats = statsFromLog(state.log);
 	const record: GameRecord = {
-		outcome: state.phase,
+		outcome: 'won',
 		jesters: state.config.jesters,
 		handSize: state.config.handSize,
 		turns: state.turn,
@@ -129,24 +142,11 @@ export function recordCompletedGame(state: GameState): GameRecord | null {
 }
 
 export function summarize(records: GameRecord[]): HistorySummary {
-	const total = records.length;
-	const wins = records.filter((r) => r.outcome === 'won').length;
-	const losses = total - wins;
-	const winRecords = records.filter((r) => r.outcome === 'won');
-	const bestTurns =
-		winRecords.length === 0 ? null : Math.min(...winRecords.map((r) => r.turns));
-	const bestTimeMs =
-		winRecords.length === 0 ? null : Math.min(...winRecords.map((r) => r.elapsedMs));
+	const wins = records.length;
+	const bestTurns = wins === 0 ? null : Math.min(...records.map((r) => r.turns));
+	const bestTimeMs = wins === 0 ? null : Math.min(...records.map((r) => r.elapsedMs));
 	const totalTimeMs = records.reduce((s, r) => s + r.elapsedMs, 0);
-	return {
-		total,
-		wins,
-		losses,
-		winRate: total === 0 ? 0 : wins / total,
-		bestTurns,
-		bestTimeMs,
-		totalTimeMs
-	};
+	return { wins, bestTurns, bestTimeMs, totalTimeMs };
 }
 
 export function formatDuration(ms: number): string {

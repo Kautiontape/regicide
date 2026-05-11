@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { GameState } from '$lib/engine';
-	import { formatDuration } from '$lib/history';
+	import { formatDuration, tierFor, type Tier } from '$lib/history';
 
 	interface Props {
 		state: GameState;
@@ -69,18 +69,18 @@
 
 	const stats = $derived(deriveStats(state));
 
-	// Bronze/Silver/Gold tier from the official solo rules:
-	//   0 Jesters used = Gold, 1 = Silver, 2 = Bronze.
-	// We only show a tier when the player played the canonical 2-Jester variant — fewer starting
-	// Jesters changes the difficulty floor and makes the tier comparison meaningless.
-	type Tier = { name: string; color: string; ring: string };
-	const tier = $derived<Tier | null>(deriveTier(state, stats.jestersUsed));
-	function deriveTier(s: GameState, used: number): Tier | null {
-		if (s.config.jesters !== 2) return null;
-		if (used === 0) return { name: 'Gold Victory', color: 'text-amber-300', ring: 'ring-amber-400/60' };
-		if (used === 1) return { name: 'Silver Victory', color: 'text-slate-200', ring: 'ring-slate-300/50' };
-		return { name: 'Bronze Victory', color: 'text-orange-300', ring: 'ring-orange-400/50' };
-	}
+	type TierStyle = { name: string; color: string; ring: string };
+	const TIER_STYLE: Record<Tier, TierStyle> = {
+		gold: { name: 'Gold Victory', color: 'text-amber-300', ring: 'ring-amber-400/60' },
+		silver: { name: 'Silver Victory', color: 'text-slate-200', ring: 'ring-slate-300/50' },
+		bronze: { name: 'Bronze Victory', color: 'text-orange-300', ring: 'ring-orange-400/50' }
+	};
+	const tier = $derived<TierStyle | null>(
+		(() => {
+			const t = tierFor({ jesters: state.config.jesters, jestersUsed: stats.jestersUsed });
+			return t ? TIER_STYLE[t] : null;
+		})()
+	);
 
 	// 24 confetti particles with deterministic offsets/colors so the animation is repeatable
 	// and not too noisy. Mostly amber/blue/red/emerald to match the game's palette.

@@ -1,9 +1,15 @@
 <script lang="ts">
 	import { game } from '$lib/store.svelte';
-	import { loadHistory, summarize, formatDuration } from '$lib/history';
+	import { loadHistory, summarize, formatDuration, tierFor, type Tier } from '$lib/history';
 
-	// Canonical solo Regicide ships with 2 Jester abilities. Bronze/Silver/Gold tier is
-	// derived from how many of those the player uses to win.
+	const TIER_LABEL: Record<Tier, string> = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze' };
+	const TIER_CLASSES: Record<Tier, string> = {
+		gold: 'bg-amber-500/15 text-amber-300 ring-amber-400/40',
+		silver: 'bg-slate-400/15 text-slate-200 ring-slate-300/40',
+		bronze: 'bg-orange-500/15 text-orange-300 ring-orange-400/40'
+	};
+
+	// Canonical solo Regicide ships with 2 Jester abilities; tier comparison only applies at 2.
 	const STARTING_JESTERS = 2 as const;
 
 	let tutorial = $state(true);
@@ -51,7 +57,7 @@
 			<p>♥ heal · ♦ draw · ♣ double damage · ♠ shield. Tooltips will explain as you go.</p>
 		</div>
 
-		{#if summary.total > 0}
+		{#if summary.wins > 0}
 			<div class="mt-6 border-t border-slate-800 pt-4">
 				<div class="flex items-center justify-between mb-3">
 					<div class="text-sm font-medium text-slate-200">History</div>
@@ -66,10 +72,7 @@
 				<div class="grid grid-cols-3 gap-2 text-xs">
 					<div class="bg-slate-800/60 rounded p-2">
 						<div class="text-slate-400 text-[10px] uppercase tracking-wider">Wins</div>
-						<div class="text-base font-bold text-amber-300">
-							{summary.wins}
-							<span class="text-[11px] text-slate-400 font-normal">/ {summary.total}</span>
-						</div>
+						<div class="text-base font-bold text-amber-300">{summary.wins}</div>
 					</div>
 					<div class="bg-slate-800/60 rounded p-2">
 						<div class="text-slate-400 text-[10px] uppercase tracking-wider">Best turns</div>
@@ -88,15 +91,12 @@
 				{#if showHistory}
 					<div class="mt-3 max-h-60 overflow-y-auto space-y-1.5 pr-1">
 						{#each [...history].reverse() as r (r.startedAt)}
+							{@const tier = tierFor(r)}
 							<div
 								class="flex items-center justify-between gap-2 text-xs bg-slate-800/40 border border-slate-700/60 rounded px-2.5 py-1.5"
 							>
 								<div class="flex items-center gap-2 min-w-0">
-									{#if r.outcome === 'won'}
-										<span class="text-amber-300 font-bold">W</span>
-									{:else}
-										<span class="text-red-400 font-bold">L</span>
-									{/if}
+									<span class="text-amber-300 font-bold" aria-label="Victory">W</span>
 									<span class="text-slate-300">
 										{r.turns}T
 										<span class="text-slate-500">·</span>
@@ -105,9 +105,14 @@
 										{r.jesters}J
 									</span>
 								</div>
-								<div class="text-slate-500 text-[11px] whitespace-nowrap">
-									{r.outcome === 'lost' ? `${r.royalsDefeated}/12 royals` : ''}
-								</div>
+								{#if tier}
+									<span
+										class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full ring-1 text-[10px] font-semibold tracking-wide whitespace-nowrap {TIER_CLASSES[tier]}"
+									>
+										<span aria-hidden="true">★</span>
+										{TIER_LABEL[tier]}
+									</span>
+								{/if}
 							</div>
 						{/each}
 					</div>
