@@ -165,7 +165,7 @@
 	function reactivePrompt(): Prompt | null {
 		if (!gs) return null;
 		if (gs.phase === 'damage' && !game.canPay) {
-			if (gs.jestersRemaining > 0) {
+			if (gs.jestersRemaining > 0 && !acked.has('reactive:jester-forced')) {
 				return {
 					id: 'reactive:jester-forced',
 					title: 'Last chance',
