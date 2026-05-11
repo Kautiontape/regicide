@@ -12,6 +12,8 @@
 	// Canonical solo Regicide ships with 2 Jester abilities; tier comparison only applies at 2.
 	const STARTING_JESTERS = 2 as const;
 
+	const DATE_FMT = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
 	let tutorial = $state(true);
 	let showHistory = $state(false);
 	let history = $state(loadHistory());
@@ -96,13 +98,14 @@
 								class="flex items-center justify-between gap-2 text-xs bg-slate-800/40 border border-slate-700/60 rounded px-2.5 py-1.5"
 							>
 								<div class="flex items-center gap-2 min-w-0">
+									<span class="text-slate-500 font-mono tabular-nums w-12 shrink-0">
+										{DATE_FMT.format(r.completedAt)}
+									</span>
 									<span class="text-amber-300 font-bold" aria-label="Victory">W</span>
 									<span class="text-slate-300">
 										{r.turns}T
 										<span class="text-slate-500">·</span>
 										<span class="font-mono tabular-nums">{formatDuration(r.elapsedMs)}</span>
-										<span class="text-slate-500">·</span>
-										{r.jesters}J
 									</span>
 								</div>
 								{#if tier}
