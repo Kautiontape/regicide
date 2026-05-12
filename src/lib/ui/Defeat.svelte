@@ -104,11 +104,7 @@
 		</div>
 
 		<div class="mt-2 flex flex-wrap gap-2 items-center justify-center">
-			{#if isDaily}
-				<!-- Share is gated to daily losses so a normal-mode loss (which we don't even
-					 record) can't accidentally publish a misleading partial result. -->
-				<ShareButton {record} lastEnemy={enemyTag} />
-			{/if}
+			<ShareButton {record} lastEnemy={enemyTag} />
 			<button
 				type="button"
 				onclick={onNewGame}
