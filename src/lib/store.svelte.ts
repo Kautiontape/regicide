@@ -16,6 +16,7 @@ import {
 	type RuleId
 } from './engine';
 import { recordCompletedGame } from './history';
+import { loadDailyAttempt, saveDailyAttempt } from './daily';
 
 const SAVE_KEY = 'regicide:save:v1';
 const SEEN_KEY = 'regicide:seen:v1';
@@ -80,11 +81,23 @@ function createGameStore() {
 		seenRules = loadSeen();
 	}
 
-	function start(config: GameConfig) {
-		const s = newGame(config);
+	function start(config: GameConfig, seed?: number) {
+		const s = newGame(config, seed);
 		state = s;
 		selected = [];
 		lastAction = { kind: 'newGame' };
+		// Daily mode: bump the attempt counter and stage the in-progress record so
+		// completion can write back the final outcome with the right attemptCount.
+		if (config.mode === 'daily' && config.dailyDate) {
+			const prior = loadDailyAttempt();
+			const attemptCount =
+				prior && prior.date === config.dailyDate ? prior.attemptCount + 1 : 1;
+			saveDailyAttempt({
+				date: config.dailyDate,
+				status: 'in-progress',
+				attemptCount
+			});
+		}
 		saveState(s);
 	}
 
@@ -188,8 +201,18 @@ function createGameStore() {
 	function maybeRecordCompletion(s: GameState) {
 		// recordCompletedGame is idempotent on startedAt so calling it twice on the same
 		// finished game is safe — the second call replaces the existing record.
-		if (s.phase === 'won' || s.phase === 'lost') {
-			recordCompletedGame(s);
+		if (s.phase !== 'won' && s.phase !== 'lost') return;
+		const isDaily = s.config.mode === 'daily';
+		const prior = isDaily ? loadDailyAttempt() : null;
+		const attemptCount = prior?.attemptCount ?? 1;
+		const record = recordCompletedGame(s, attemptCount);
+		if (isDaily && s.config.dailyDate) {
+			saveDailyAttempt({
+				date: s.config.dailyDate,
+				status: s.phase,
+				attemptCount,
+				recordRef: record?.startedAt
+			});
 		}
 	}
 

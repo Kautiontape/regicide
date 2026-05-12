@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { game } from '$lib/store.svelte';
 	import { loadHistory, summarize, formatDuration, tierFor, type Tier } from '$lib/history';
+	import {
+		dailyNumber,
+		loadDailyAttempt,
+		seedFor,
+		todayKey,
+		type DailyAttempt
+	} from '$lib/daily';
+	import ShareButton from './ShareButton.svelte';
 
 	const TIER_LABEL: Record<Tier, string> = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze' };
 	const TIER_CLASSES: Record<Tier, string> = {
@@ -16,17 +24,26 @@
 
 	let showHistory = $state(false);
 	let history = $state(loadHistory());
-	let confirmReset = $state(false);
+	let confirmRetry = $state(false);
+	let dailyAttempt = $state<DailyAttempt | null>(null);
 	const summary = $derived(summarize(history));
+	const dailyTodayNumber = $derived(dailyNumber(todayKey()));
+	const dailyRecord = $derived(
+		dailyAttempt?.recordRef
+			? history.find((r) => r.startedAt === dailyAttempt!.recordRef) ?? null
+			: null
+	);
 
 	// First-time player = no recorded games AND no prior tutorial dismissal. The two checks
 	// are belt-and-braces: clearing history doesn't re-trigger the tutorial nag, and skipping
 	// the tutorial without ever finishing a game also doesn't.
 	let firstTime = $state(true);
+	let tutorialDone = $state(false);
 	$effect(() => {
 		if (typeof localStorage === 'undefined') return;
-		const tutorialDone = localStorage.getItem('regicide:tutorialDone:v1') === '1';
+		tutorialDone = localStorage.getItem('regicide:tutorialDone:v1') === '1';
 		firstTime = !tutorialDone && history.length === 0;
+		dailyAttempt = loadDailyAttempt();
 	});
 
 	function start(tutorial: boolean) {
@@ -35,23 +52,34 @@
 		if (typeof localStorage !== 'undefined') {
 			localStorage.setItem('regicide:tutorialDone:v1', '1');
 		}
-		game.start({ jesters: STARTING_JESTERS, handSize: 8, tutorial });
+		game.start({ jesters: STARTING_JESTERS, handSize: 8, tutorial, mode: 'normal' });
 	}
 
-	function resetAllData() {
-		if (typeof localStorage === 'undefined') return;
-		// Wipe every key the app owns. Iterating instead of removing known keys means future
-		// keys (e.g. settings, daily-seed bookmarks) get cleaned up here automatically too.
-		const toRemove: string[] = [];
-		for (let i = 0; i < localStorage.length; i++) {
-			const key = localStorage.key(i);
-			if (key && key.startsWith('regicide:')) toRemove.push(key);
+	function startDaily() {
+		// Daily forces tutorial off — the scripted hand would make scores incomparable. The
+		// tutorial-done flag flips so a player who chose "skip tutorial and play daily" as
+		// their first interaction won't see the tutorial entry on the next visit.
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('regicide:tutorialDone:v1', '1');
 		}
-		for (const key of toRemove) localStorage.removeItem(key);
-		// Reload so every component (store, tutorial state, history list) re-initialises from
-		// the now-empty storage instead of holding stale in-memory copies.
-		location.reload();
+		const date = todayKey();
+		game.start(
+			{
+				jesters: STARTING_JESTERS,
+				handSize: 8,
+				tutorial: false,
+				mode: 'daily',
+				dailyDate: date
+			},
+			seedFor(date)
+		);
 	}
+
+	function retryDaily() {
+		confirmRetry = false;
+		startDaily();
+	}
+
 </script>
 
 <div class="min-h-screen flex flex-col items-center justify-center gap-4 p-6">
@@ -75,6 +103,13 @@
 				>
 					Skip tutorial and play
 				</button>
+				<button
+					type="button"
+					onclick={startDaily}
+					class="w-full text-xs text-slate-500 hover:text-amber-300 underline-offset-2 hover:underline py-1"
+				>
+					Skip tutorial and play today's daily
+				</button>
 			{:else}
 				<button
 					type="button"
@@ -93,45 +128,106 @@
 			{/if}
 		</div>
 
+		{#if tutorialDone}
+			<!-- Daily card: shared puzzle, one canonical attempt per day, replays allowed but flagged
+				 in the share text. Hidden until the player has made it through (or skipped) the
+				 tutorial — daily-mode cheese-protection only matters once they actually know the rules. -->
+			<div class="mt-6 border-t border-slate-800 pt-4">
+				<div class="flex items-baseline justify-between mb-2">
+					<div class="text-sm font-semibold text-amber-300">Daily Challenge</div>
+					<div class="text-xs text-slate-500">#{dailyTodayNumber}</div>
+				</div>
+				{#if !dailyAttempt}
+					<p class="text-xs text-slate-400 mb-3">
+						Same hand as everyone else today. One run — try to climb as far as you can.
+					</p>
+					<button
+						type="button"
+						onclick={startDaily}
+						class="w-full bg-slate-800 hover:bg-slate-700 ring-1 ring-amber-400/40 text-amber-200 font-semibold py-2.5 rounded-lg transition-colors"
+					>
+						Play today's daily
+					</button>
+				{:else if dailyAttempt.status === 'in-progress'}
+					<!-- Surfaces only if the GameState was wiped out from under an in-progress daily
+						 (rare). Normal in-progress dailies route to the Board automatically. -->
+					<p class="text-xs text-slate-400 mb-3">
+						You have an unfinished daily. Restarting will count as attempt
+						{dailyAttempt.attemptCount + 1}.
+					</p>
+					<button
+						type="button"
+						onclick={() => (confirmRetry = true)}
+						class="w-full bg-slate-800 hover:bg-slate-700 ring-1 ring-amber-400/40 text-amber-200 font-semibold py-2.5 rounded-lg transition-colors"
+					>
+						Restart daily
+					</button>
+				{:else}
+					{@const tier = dailyRecord ? tierFor(dailyRecord) : null}
+					<div
+						class="bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 mb-3 flex items-center justify-between gap-2"
+					>
+						<div class="flex items-center gap-2 min-w-0 text-xs">
+							{#if dailyAttempt.status === 'won'}
+								<span class="text-amber-300 font-bold">W</span>
+							{:else}
+								<span class="text-red-300 font-bold">L</span>
+							{/if}
+							{#if dailyRecord}
+								<span class="text-slate-300">
+									{dailyAttempt.status === 'won'
+										? `${dailyRecord.turns}T`
+										: `${dailyRecord.royalsDefeated}/12`}
+									<span class="text-slate-500">·</span>
+									<span class="font-mono tabular-nums">{formatDuration(dailyRecord.elapsedMs)}</span>
+								</span>
+							{/if}
+							{#if dailyAttempt.attemptCount > 1}
+								<span class="text-slate-500" title="Retry attempt">🔁{dailyAttempt.attemptCount}</span>
+							{/if}
+						</div>
+						{#if tier}
+							<span
+								class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full ring-1 text-[10px] font-semibold tracking-wide whitespace-nowrap {TIER_CLASSES[tier]}"
+							>
+								<span aria-hidden="true">★</span>
+								{TIER_LABEL[tier]}
+							</span>
+						{/if}
+					</div>
+					<div class="flex gap-2">
+						{#if dailyRecord}
+							<ShareButton record={dailyRecord} class="flex-1" />
+						{/if}
+						<button
+							type="button"
+							onclick={() => (confirmRetry = true)}
+							class="px-3 py-2 rounded-lg text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 ring-1 ring-slate-700"
+							title="Replay today's daily — counts as a retry on your share text"
+						>
+							↻ Try again
+						</button>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
 		<div class="mt-6 text-xs text-slate-500 leading-relaxed border-t border-slate-800 pt-4">
 			<p class="mb-1">Solo. Twelve royals stand between you and the throne.</p>
 			<p>♥ heal · ♦ draw · ♣ double damage · ♠ shield.</p>
 		</div>
 
-		{#if summary.wins === 0 && !firstTime}
-			<!-- Returning player with no wins yet — surface the reset on its own so the only way
-				 to recover from a corrupted state isn't to dig into devtools. -->
-			<div class="mt-6 border-t border-slate-800 pt-4 flex justify-end">
-				<button
-					type="button"
-					onclick={() => (confirmReset = true)}
-					class="text-xs text-slate-500 hover:text-red-300 underline-offset-2 hover:underline"
-				>
-					reset all data
-				</button>
-			</div>
-		{/if}
-
-		{#if summary.wins > 0}
+		{#if history.length > 0}
 			<div class="mt-6 border-t border-slate-800 pt-4">
 				<div class="flex items-center justify-between mb-3">
 					<div class="text-sm font-medium text-slate-200">History</div>
-					<div class="flex items-center gap-3">
-						<button
-							type="button"
-							onclick={() => (confirmReset = true)}
-							class="text-xs text-slate-500 hover:text-red-300 underline-offset-2 hover:underline"
-						>
-							reset
-						</button>
-						<button
-							type="button"
-							onclick={() => (showHistory = !showHistory)}
-							class="text-xs text-slate-400 hover:text-amber-300 underline-offset-2 hover:underline"
-						>
-							{showHistory ? 'hide' : `${history.length} game${history.length === 1 ? '' : 's'}`}
-						</button>
-					</div>
+					<button
+						type="button"
+						onclick={() => (showHistory = !showHistory)}
+						class="text-xs text-slate-400 hover:text-amber-300 underline-offset-2 hover:underline"
+					>
+						{showHistory ? 'hide' : `${history.length} game${history.length === 1 ? '' : 's'}`}
+					</button>
 				</div>
 				<div class="grid grid-cols-3 gap-2 text-xs">
 					<div class="bg-slate-800/60 rounded p-2">
@@ -163,12 +259,27 @@
 									<span class="text-slate-500 font-mono tabular-nums w-12 shrink-0">
 										{DATE_FMT.format(r.completedAt)}
 									</span>
-									<span class="text-amber-300 font-bold" aria-label="Victory">W</span>
+									{#if r.outcome === 'won'}
+										<span class="text-amber-300 font-bold" aria-label="Victory">W</span>
+									{:else}
+										<span class="text-red-300 font-bold" aria-label="Defeat">L</span>
+									{/if}
 									<span class="text-slate-300">
-										{r.turns}T
+										{r.outcome === 'won' ? `${r.turns}T` : `${r.royalsDefeated}/12`}
 										<span class="text-slate-500">·</span>
 										<span class="font-mono tabular-nums">{formatDuration(r.elapsedMs)}</span>
 									</span>
+									{#if r.mode === 'daily' && r.dailyDate}
+										<span class="text-amber-300/70 text-[10px] font-semibold whitespace-nowrap"
+											>D#{dailyNumber(r.dailyDate)}</span
+										>
+									{/if}
+									{#if r.tutorial}
+										<span title="Tutorial assist">📖</span>
+									{/if}
+									{#if r.attemptCount > 1}
+										<span title="Retry attempt">🔁</span>
+									{/if}
 								</div>
 								{#if tier}
 									<span
@@ -203,15 +314,15 @@
 	</p>
 </div>
 
-{#if confirmReset}
+{#if confirmRetry}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 	<div
 		class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"
 		role="dialog"
 		aria-modal="true"
-		aria-labelledby="confirm-reset-title"
+		aria-labelledby="confirm-retry-title"
 		tabindex="-1"
-		onclick={() => (confirmReset = false)}
+		onclick={() => (confirmRetry = false)}
 	>
 		<div
 			class="max-w-sm w-full bg-slate-900 border border-slate-700 rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col gap-4"
@@ -219,28 +330,29 @@
 			role="presentation"
 		>
 			<div>
-				<div id="confirm-reset-title" class="text-lg font-bold text-amber-300">Reset all data?</div>
+				<div id="confirm-retry-title" class="text-lg font-bold text-amber-300">Replay today's daily?</div>
 				<div class="text-sm text-slate-300 mt-1">
-					Wipes your win history, tutorial progress, and any in-progress game. You'll see the
-					tutorial entry next time. This cannot be undone.
+					Your previous attempt will be overwritten, and your share text will be marked with 🔁.
+					Tomorrow's puzzle resets the counter.
 				</div>
 			</div>
 			<div class="flex gap-2 justify-end">
 				<button
 					type="button"
-					onclick={() => (confirmReset = false)}
+					onclick={() => (confirmRetry = false)}
 					class="px-4 py-2 rounded-lg text-sm bg-slate-800 hover:bg-slate-700 text-slate-200"
 				>
 					Cancel
 				</button>
 				<button
 					type="button"
-					onclick={resetAllData}
-					class="px-4 py-2 rounded-lg text-sm bg-red-500 hover:bg-red-400 text-white font-semibold"
+					onclick={retryDaily}
+					class="px-4 py-2 rounded-lg text-sm bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold"
 				>
-					Reset
+					Try again
 				</button>
 			</div>
 		</div>
 	</div>
 {/if}
+

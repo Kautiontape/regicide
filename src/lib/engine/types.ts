@@ -48,11 +48,19 @@ export interface LogEntry {
 	text: string;
 }
 
+export type GameMode = 'normal' | 'daily';
+
 export interface GameConfig {
 	jesters: 0 | 1 | 2;
 	handSize: number; // 8 for solo
 	seed?: number; // optional for determinism
 	tutorial?: boolean; // when true, run guided callouts on the first few turns
+	/** Default 'normal'. 'daily' runs use a date-derived seed shared by every player on the
+	 *  same calendar day; tutorial is forced off in this mode at the call site. */
+	mode?: GameMode;
+	/** Set on daily runs to the local YYYY-MM-DD key the seed was derived from. Lets the
+	 *  share text and history record the puzzle number without recomputing it. */
+	dailyDate?: string;
 }
 
 export interface GameState {

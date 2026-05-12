@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { GameState } from '$lib/engine';
-	import { formatDuration } from '$lib/history';
+	import { buildRecord, formatDuration } from '$lib/history';
+	import { dailyNumber, loadDailyAttempt } from '$lib/daily';
+	import ShareButton from './ShareButton.svelte';
 
 	interface Props {
 		state: GameState;
@@ -22,9 +24,18 @@
 	const shortBy = $derived(Math.max(0, damageOwed - handTotal));
 	const royalsRemaining = $derived(state.castleDeck.length + (enemy ? 1 : 0));
 
+	const isDaily = $derived(state.config.mode === 'daily');
+	const dailyAttempt = $derived(isDaily ? loadDailyAttempt() : null);
+	const record = $derived(buildRecord(state, dailyAttempt?.attemptCount ?? 1));
+
 	function rankName(r: 'J' | 'Q' | 'K') {
 		return r === 'J' ? 'Jack' : r === 'Q' ? 'Queen' : 'King';
 	}
+
+	const SUIT_GLYPH = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' } as const;
+	// Compact "Q♥"-style enemy label fed into the share text. Skipped when there's no current
+	// enemy (concede before any royal was revealed — the share still works without it).
+	const enemyTag = $derived(enemy ? `${enemy.rank}${SUIT_GLYPH[enemy.suit]}` : undefined);
 </script>
 
 <div
@@ -37,6 +48,13 @@
 			<div class="text-4xl sm:text-5xl font-bold text-red-400 tracking-tight defeat-pop">
 				Defeated
 			</div>
+			{#if isDaily && state.config.dailyDate}
+				<div class="mt-1 text-xs text-amber-300/80 font-semibold tracking-wide">
+					Daily #{dailyNumber(state.config.dailyDate)}{#if record.attemptCount > 1}
+						<span class="text-slate-500"> · 🔁 attempt {record.attemptCount}</span>
+					{/if}
+				</div>
+			{/if}
 			<div class="text-sm sm:text-base text-slate-300 mt-1">
 				{#if enemy}
 					The {rankName(enemy.rank)} of {enemy.suit} hits harder than you can block.
@@ -44,6 +62,9 @@
 					The royals win this round.
 				{/if}
 			</div>
+			{#if record.tutorial}
+				<div class="text-xs text-slate-500 mt-1">📖 with tutorial</div>
+			{/if}
 		</div>
 
 		<!-- Damage math: shows exactly why this play could not be defended. -->
@@ -82,13 +103,20 @@
 			<span class="font-mono tabular-nums">{formatDuration(elapsedMs)}</span>
 		</div>
 
-		<button
-			type="button"
-			onclick={onNewGame}
-			class="mt-2 px-6 py-3 rounded-lg font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 transition-colors"
-		>
-			New game
-		</button>
+		<div class="mt-2 flex flex-wrap gap-2 items-center justify-center">
+			{#if isDaily}
+				<!-- Share is gated to daily losses so a normal-mode loss (which we don't even
+					 record) can't accidentally publish a misleading partial result. -->
+				<ShareButton {record} lastEnemy={enemyTag} />
+			{/if}
+			<button
+				type="button"
+				onclick={onNewGame}
+				class="px-6 py-3 rounded-lg font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 transition-colors"
+			>
+				New game
+			</button>
+		</div>
 	</div>
 </div>
 

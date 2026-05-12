@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { GameState } from '$lib/engine';
-	import { formatDuration, tierFor, type Tier } from '$lib/history';
+	import { buildRecord, formatDuration, tierFor, type Tier } from '$lib/history';
+	import { dailyNumber, loadDailyAttempt } from '$lib/daily';
+	import ShareButton from './ShareButton.svelte';
 
 	interface Props {
 		state: GameState;
@@ -11,6 +13,10 @@
 	const elapsedMs = $derived(
 		Math.max(0, (state.endedAt ?? Date.now()) - state.startedAt)
 	);
+
+	const dailyAttempt = $derived(state.config.mode === 'daily' ? loadDailyAttempt() : null);
+	const record = $derived(buildRecord(state, dailyAttempt?.attemptCount ?? 1));
+	const isDaily = $derived(state.config.mode === 'daily');
 
 	type Stats = {
 		turns: number;
@@ -125,6 +131,13 @@
 			<div class="text-4xl sm:text-5xl font-bold text-amber-300 tracking-tight victory-pop">
 				Victory
 			</div>
+			{#if isDaily && state.config.dailyDate}
+				<div class="mt-1 text-xs text-amber-300/80 font-semibold tracking-wide">
+					Daily #{dailyNumber(state.config.dailyDate)}{#if record.attemptCount > 1}
+						<span class="text-slate-500"> · 🔁 attempt {record.attemptCount}</span>
+					{/if}
+				</div>
+			{/if}
 			{#if tier}
 				<div
 					class="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-slate-900/70 ring-1 {tier.ring} {tier.color} text-xs sm:text-sm font-semibold tracking-wide"
@@ -138,6 +151,9 @@
 				<span class="text-slate-500">·</span>
 				<span class="font-mono tabular-nums text-slate-200">{formatDuration(elapsedMs)}</span>
 			</div>
+			{#if record.tutorial}
+				<div class="text-xs text-slate-500 mt-1">📖 with tutorial</div>
+			{/if}
 		</div>
 
 		<div class="grid grid-cols-2 gap-2 sm:gap-3 w-full">
@@ -173,13 +189,16 @@
 			</div>
 		{/if}
 
-		<button
-			type="button"
-			onclick={onNewGame}
-			class="mt-2 px-6 py-3 rounded-lg font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 transition-colors"
-		>
-			New game
-		</button>
+		<div class="mt-2 flex flex-wrap gap-2 items-center justify-center">
+			<ShareButton {record} />
+			<button
+				type="button"
+				onclick={onNewGame}
+				class="px-6 py-3 rounded-lg font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 transition-colors"
+			>
+				New game
+			</button>
+		</div>
 	</div>
 </div>
 
