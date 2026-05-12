@@ -1,5 +1,12 @@
 import type { Card, GameConfig, GameState, LogEntry, Royal, Suit } from './types';
-import { buildCastleDeck, buildTavernDeck, rng, shuffleWith } from './deck';
+import {
+	buildCastleDeck,
+	buildTavernDeck,
+	buildTutorialCastle,
+	buildTutorialTavern,
+	rng,
+	shuffleWith
+} from './deck';
 import { checkCombo } from './combo';
 
 const POWER_ORDER: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
@@ -37,8 +44,12 @@ function rankName(r: 'J' | 'Q' | 'K'): string {
 export function newGame(config: GameConfig, seed = Date.now()): GameState {
 	const rand = rng(seed);
 	const shuffle = shuffleWith(rand);
-	const tavern = shuffle(buildTavernDeck());
-	const castle = buildCastleDeck(shuffle);
+	// Tutorial mode bypasses the shuffle entirely so the scripted prompts can rely on
+	// specific cards being where they need to be (opening hand + first three draws + Jack
+	// of Hearts as the first enemy). Once the player burns through the rigged top of the
+	// tavern, the remaining filler is in a fixed but irrelevant order.
+	const tavern = config.tutorial ? buildTutorialTavern() : shuffle(buildTavernDeck());
+	const castle = config.tutorial ? buildTutorialCastle() : buildCastleDeck(shuffle);
 
 	const hand = tavern.splice(0, config.handSize);
 	const enemy = castle.shift()!;

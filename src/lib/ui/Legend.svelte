@@ -11,8 +11,8 @@
 	<div class="text-xs uppercase tracking-wider text-slate-400">Powers</div>
 	<div class="space-y-1.5 text-xs">
 		{#each rows as r}
-			<div class="flex gap-2 leading-snug">
-				<span class="{r.color} font-bold w-4 text-center">{r.glyph}</span>
+			<div class="flex items-start gap-2 leading-snug">
+				<span class="{r.color} font-bold w-4 text-center flex-shrink-0 suit-glyph">{r.glyph}</span>
 				<span class="text-slate-300">{r.text}</span>
 			</div>
 		{/each}
@@ -22,3 +22,14 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	/* Force text-style (mono-color, font-controlled) rendering so all four suit glyphs
+	   are the same size and baseline. Without this, browsers may render some (♥ ♦)
+	   as emoji and others (♣ ♠) as text, breaking alignment and ignoring CSS color. */
+	.suit-glyph {
+		font-variant-emoji: text;
+		font-feature-settings: 'ss01';
+		line-height: 1.25;
+	}
+</style>

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { game } from '$lib/store.svelte';
 	import { checkCombo, forecast, RULE_TEXT, type Card as CardType, type RuleId } from '$lib/engine';
+	import { tutorialAdvice } from '$lib/tutorial';
 	import Card from './Card.svelte';
 	import Royal from './Royal.svelte';
 	import PhaseStrip from './PhaseStrip.svelte';
@@ -11,6 +12,7 @@
 	import Legend from './Legend.svelte';
 	import Tutorial from './Tutorial.svelte';
 	import JesterTray from './JesterTray.svelte';
+	import JesterIcon from './JesterIcon.svelte';
 	import PilePeek from './PilePeek.svelte';
 	import InfoSlot, { type InfoKind } from './InfoSlot.svelte';
 	import Victory from './Victory.svelte';
@@ -39,6 +41,9 @@
 	let openPile: 'tavern' | 'discard' | null = $state(null);
 	let mobileSheet: 'log' | 'legend' | null = $state(null);
 	let confirmNewGame = $state(false);
+	// Lifted from JesterTray so this component can suppress its own keyboard shortcuts
+	// while the Jester confirmation dialog is showing.
+	let jesterOpen = $state(false);
 
 	type SlotMsg = { kind: InfoKind; text: string; detail?: string };
 	let infoOverride = $state<SlotMsg | null>(null);
@@ -87,6 +92,17 @@
 			? new Set(game.suggestedDiscards)
 			: new Set<string>()
 	);
+
+	// Tutorial recommendations: amber pulsing outline on cards the script wants the player
+	// to act on right now. Only IDs actually present in hand survive — the helper may name
+	// cards that haven't been drawn yet (e.g. 4♥ at the start of T2 before the diamond draw).
+	const advice = $derived(gs ? tutorialAdvice(gs) : { play: [], discard: [] });
+	const recommendedSet = $derived(() => {
+		if (!gs) return new Set<string>();
+		const handIds = new Set(gs.hand.map((c) => c.id));
+		const ids = gs.phase === 'play' ? advice.play : gs.phase === 'damage' ? advice.discard : [];
+		return new Set(ids.filter((id) => handIds.has(id)));
+	});
 
 	// During play, cards matching the royal's still-active immune suit won't trigger powers.
 	const suppressedSuit = $derived(
@@ -226,9 +242,15 @@
 		game.commitDamage([]);
 	}
 
-	function newGame() {
-		// Won/lost games are already over — no work to abandon, skip the confirmation.
-		if (gs && (gs.phase === 'won' || gs.phase === 'lost')) {
+	// Header button doubles as "Concede" during a live game and "new game" once the run
+	// has resolved. A running game asks for confirmation before surrendering; a finished
+	// game just resets to the setup screen.
+	const headerButtonMode = $derived<'concede' | 'reset'>(
+		gs && (gs.phase === 'play' || gs.phase === 'damage') ? 'concede' : 'reset'
+	);
+
+	function headerButtonClick() {
+		if (headerButtonMode === 'reset') {
 			game.abandon();
 			return;
 		}
@@ -237,7 +259,9 @@
 
 	function confirmAbandon() {
 		confirmNewGame = false;
-		game.abandon();
+		// Concede transitions into the 'lost' phase so the player sees the Defeat overlay
+		// with the final damage math instead of being dumped back to setup.
+		game.concede();
 	}
 
 	function selectCard(c: CardType) {
@@ -259,6 +283,10 @@
 		const target = e.target as HTMLElement | null;
 		if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
+		// When the Jester confirmation dialog is showing, it owns all keyboard input —
+		// ignore everything here so we don't simultaneously clear selection, play a combo,
+		// etc., based on the same keystroke.
+		if (jesterOpen) return;
 		if (e.key === 'Escape') {
 			if (confirmNewGame) {
 				confirmNewGame = false;
@@ -282,6 +310,9 @@
 			}
 			return;
 		}
+		// `0` is reserved for the Jester — JesterTray handles it (opens the confirmation
+		// dialog rather than activating directly so the player can't burn it accidentally).
+		if (e.key === '0') return;
 		const n = parseInt(e.key, 10);
 		if (Number.isFinite(n) && n >= 1 && n <= 9) {
 			const idx = n - 1;
@@ -305,7 +336,7 @@
 			<div class="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
 				<h1 class="font-bold tracking-tight text-base sm:text-lg">Regicide</h1>
 				<div class="text-[11px] sm:text-xs text-slate-400 truncate flex items-center gap-1.5 sm:gap-2">
-					<span><span class="hidden sm:inline">Turn </span>T{gs.turn}</span>
+					<span class="hidden sm:inline">Turn {gs.turn}</span><span class="sm:hidden">T{gs.turn}</span>
 					<span class="text-slate-600">·</span>
 					<Timer startedAt={gs.startedAt} endedAt={gs.endedAt} />
 					<span class="text-slate-600 hidden sm:inline">·</span>
@@ -331,16 +362,24 @@
 					≡
 				</button>
 				<button
-					onclick={newGame}
-					class="text-slate-400 hover:text-amber-300 whitespace-nowrap flex-shrink-0
+					onclick={headerButtonClick}
+					class="whitespace-nowrap flex-shrink-0
 						md:text-xs md:underline-offset-2 md:hover:underline
 						w-8 h-8 md:w-auto md:h-auto rounded md:rounded-none border md:border-0 border-slate-800/80
-						flex items-center justify-center text-base md:text-xs"
-					aria-label="New game"
-					title="New game"
+						flex items-center justify-center text-base md:text-xs
+						{headerButtonMode === 'concede'
+							? 'text-red-300 hover:text-red-200'
+							: 'text-slate-400 hover:text-amber-300'}"
+					aria-label={headerButtonMode === 'concede' ? 'Concede' : 'New game'}
+					title={headerButtonMode === 'concede' ? 'Concede' : 'New game'}
 				>
-					<span class="md:hidden">↻</span>
-					<span class="hidden md:inline">new game</span>
+					{#if headerButtonMode === 'concede'}
+						<span class="md:hidden" aria-hidden="true">⚑</span>
+						<span class="hidden md:inline">concede</span>
+					{:else}
+						<span class="md:hidden" aria-hidden="true">↻</span>
+						<span class="hidden md:inline">new game</span>
+					{/if}
 				</button>
 			</div>
 		</header>
@@ -385,6 +424,10 @@
 
 		<!-- Main play area -->
 		<main class="flex-1 flex flex-col md:flex-row min-h-0">
+			<!-- Phantom left spacer to balance the right-hand sidebar so the center column
+				 sits in the middle of the viewport on desktop. -->
+			<div class="hidden md:block w-72 flex-shrink-0" aria-hidden="true"></div>
+
 			<!-- Center column. justify-start + mt-auto on the hand row anchors play+hand to the
 				 bottom while the upper sections keep stable positions, even as forecast/played
 				 sections appear or disappear. -->
@@ -479,7 +522,7 @@
 								</button>
 							{:else if !game.canPay}
 								<button
-									onclick={() => game.abandon()}
+									onclick={() => game.concede()}
 									class="px-5 py-2 rounded-lg font-semibold bg-red-500 hover:bg-red-400 text-white"
 								>
 									Concede
@@ -503,56 +546,85 @@
 							{/if}
 						{:else if gs.phase === 'won' || gs.phase === 'lost'}
 							<button
-								onclick={newGame}
+								onclick={() => game.abandon()}
 								class="px-5 py-2 rounded-lg font-semibold bg-amber-400 hover:bg-amber-300 text-slate-900"
 							>
 								New game
 							</button>
 						{/if}
+						<!-- Hand size — sits to the right of the action button so the count is
+							 visible at the moment the player is choosing what to play. Top stats
+							 strip is far enough away that you'd lose your eyeline. -->
+						<div class="flex items-baseline gap-1 text-xs text-slate-400 ml-1" aria-label="Hand size">
+							<span class="font-bold text-slate-200 text-base leading-none">{gs.hand.length}</span>
+							<span class="leading-none">/ {gs.config.handSize}</span>
+						</div>
 					</div>
 
 					<div class="w-full md:w-auto relative">
-						<!-- Hand size badge - hidden on mobile (shown in stats strip instead) -->
-						<div class="hidden md:flex absolute right-0 -top-2 items-center gap-1 text-xs text-slate-400">
-							<span class="font-bold text-slate-200 text-base">{gs.hand.length}</span>
-							<span>/ {gs.config.handSize}</span>
-						</div>
-
-						<!-- Hand container: horizontal scroll on overflow.
-							 pt-3 leaves room for the -translate-y-2 lift on selected cards
-							 (overflow-x-auto clips both axes per CSS spec). -->
-						<div class="flex items-end gap-2 sm:gap-3 justify-start md:justify-center pt-3 pb-2 sm:pt-0 sm:pb-8 overflow-x-auto md:overflow-visible px-3 md:px-0 scroll-smooth hand-scroll snap-x">
-							{#each sortedHand as c, i (c.id)}
-								{@const isSel = selected.includes(c.id)}
-								{@const inactive = gs.phase === 'play' && !isAddable(c)}
-								<div class="flex flex-col items-center gap-1 flex-shrink-0 snap-start">
-									<Card
-										card={c}
-										selected={isSel}
-										disabled={gs.phase !== 'play' && gs.phase !== 'damage'}
-										dim={inactive}
-										suppressed={c.suit !== null &&
-											c.suit === suppressedSuit &&
-											c.rank !== 'JESTER'}
-										emphasis={!isSel && suggestedSet.has(c.id) ? 'suggest' : null}
-										onclick={() => selectCard(c)}
-										onhover={(t) => {
-											// Hover/long-press on a hand card writes its description into the info slot.
-											if (t) setOverride(describeCard(c), 5000);
-											else if (infoOverride?.kind === 'card') clearOverride();
-										}}
-									/>
-									{#if i < 9}
-										<kbd
-											class="hidden md:block text-[10px] font-mono px-1.5 py-0.5 rounded border {isSel
-												? 'border-amber-400/70 text-amber-300'
-												: 'border-slate-700 text-slate-500'}"
-										>
-											{i + 1}
-										</kbd>
-									{/if}
+						<!-- Hand container: horizontal scroll on overflow. pt-5 leaves room for both
+							 the -translate-y-2 lift on selected cards AND the tutorial recommendation
+							 pulse halo (overflow-x-auto clips overflow-y too per CSS spec, so any
+							 box-shadow extending above the cards needs to fit in this padding). -->
+						<div class="flex items-end gap-2 sm:gap-3 justify-start md:justify-center pt-5 pb-2 sm:pt-5 sm:pb-8 overflow-x-auto md:overflow-visible px-3 md:px-0 scroll-smooth hand-scroll snap-x">
+							{#if sortedHand.length === 0 && (gs.phase === 'play' || gs.phase === 'damage') && gs.jestersRemaining > 0}
+								<!-- Empty-hand placeholder. We replace the hand row with a Jester-shaped slot
+									 because an invisible empty area gave players no signal about what to do
+									 next when they ran out of cards but still had a Jester to spend. -->
+								<div class="flex flex-col items-center gap-2 mx-auto">
+									<button
+										type="button"
+										onclick={() => (jesterOpen = true)}
+										aria-label="Hand empty — use a Jester to deal a fresh hand"
+										class="empty-jester-card w-16 h-24 sm:w-20 sm:h-28 rounded-lg shadow-md font-semibold cursor-pointer relative bg-gradient-to-br from-purple-500 to-pink-500 text-white"
+									>
+										<div class="absolute top-1 left-1 text-[10px] font-bold tracking-wide">JEST</div>
+										<div class="absolute bottom-1 right-1 text-[10px] font-bold tracking-wide rotate-180">JEST</div>
+										<div class="absolute inset-0 flex items-center justify-center text-amber-200">
+											<JesterIcon size="2.25rem" />
+										</div>
+									</button>
+									<div class="text-xs text-slate-300 text-center max-w-[14rem]">
+										Hand is empty. Tap to use a Jester and deal a fresh hand.
+									</div>
 								</div>
-							{/each}
+							{:else}
+								{#each sortedHand as c, i (c.id)}
+									{@const isSel = selected.includes(c.id)}
+									{@const inactive = gs.phase === 'play' && !isAddable(c)}
+									<div class="flex flex-col items-center gap-1 flex-shrink-0 snap-start">
+										<Card
+											card={c}
+											selected={isSel}
+											disabled={gs.phase !== 'play' && gs.phase !== 'damage'}
+											dim={inactive}
+											suppressed={c.suit !== null &&
+												c.suit === suppressedSuit &&
+												c.rank !== 'JESTER'}
+											emphasis={!isSel && recommendedSet().has(c.id)
+											? 'recommend'
+											: !isSel && suggestedSet.has(c.id)
+												? 'suggest'
+												: null}
+											onclick={() => selectCard(c)}
+											onhover={(t) => {
+												// Hover/long-press on a hand card writes its description into the info slot.
+												if (t) setOverride(describeCard(c), 5000);
+												else if (infoOverride?.kind === 'card') clearOverride();
+											}}
+										/>
+										{#if i < 9}
+											<kbd
+												class="hidden md:block text-[10px] font-mono px-1.5 py-0.5 rounded border {isSel
+													? 'border-amber-400/70 text-amber-300'
+													: 'border-slate-700 text-slate-500'}"
+											>
+												{i + 1}
+											</kbd>
+										{/if}
+									</div>
+								{/each}
+							{/if}
 						</div>
 					</div>
 				</div>
@@ -602,7 +674,7 @@
 		</main>
 
 		<Tutorial />
-		<JesterTray />
+		<JesterTray bind:open={jesterOpen} />
 
 		<!-- Mobile slide-up sheet for log / legend -->
 		{#if mobileSheet}
@@ -655,9 +727,9 @@
 					role="presentation"
 				>
 					<div>
-						<div id="confirm-new-game-title" class="text-lg font-bold text-amber-300">Abandon current game?</div>
+						<div id="confirm-new-game-title" class="text-lg font-bold text-amber-300">Concede this run?</div>
 						<div class="text-sm text-slate-300 mt-1">
-							You'll lose this run — turn {gs.turn}, {gs.castleDeck.length + (gs.currentEnemy ? 1 : 0)} royal{gs.castleDeck.length === 0 ? '' : 's'} remaining.
+							You'll surrender on turn {gs.turn} with {gs.castleDeck.length + (gs.currentEnemy ? 1 : 0)} royal{gs.castleDeck.length === 0 ? '' : 's'} remaining.
 						</div>
 					</div>
 					<div class="flex gap-2 justify-end">
@@ -673,7 +745,7 @@
 							onclick={confirmAbandon}
 							class="px-4 py-2 rounded-lg text-sm bg-red-500 hover:bg-red-400 text-white font-semibold"
 						>
-							Abandon
+							Concede
 						</button>
 					</div>
 				</div>

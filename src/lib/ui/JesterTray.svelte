@@ -2,12 +2,20 @@
 	import { game } from '$lib/store.svelte';
 	import JesterIcon from './JesterIcon.svelte';
 
+	interface Props {
+		/**
+		 * Modal open state. Lifted up via $bindable so the parent (Board) can detect when
+		 * the dialog is showing and suppress its own Enter/Space handlers — otherwise both
+		 * window-level keydown listeners would fire on the same key.
+		 */
+		open?: boolean;
+	}
+	let { open = $bindable(false) }: Props = $props();
+
 	const gs = $derived(game.state);
 	const remaining = $derived(gs?.jestersRemaining ?? 0);
 	const phase = $derived(gs?.phase ?? 'play');
 	const canUse = $derived(remaining > 0 && (phase === 'play' || phase === 'damage'));
-
-	let open = $state(false);
 
 	function toggle() {
 		if (!canUse) return;
@@ -25,9 +33,30 @@
 	}
 
 	function onKey(e: KeyboardEvent) {
-		if (e.key === 'Escape' && open) {
+		// Ignore keypresses while typing in inputs/textareas so e.g. setup screens stay typeable.
+		const target = e.target as HTMLElement | null;
+		if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+
+		if (open) {
+			// While the confirmation dialog is showing, intercept the confirm/cancel keys
+			// so Board.svelte's window-level handler doesn't also act on them.
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				close();
+				return;
+			}
+			if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') {
+				e.preventDefault();
+				activate();
+				return;
+			}
+			return;
+		}
+		if (e.key === '0' && canUse) {
+			// Open the confirmation dialog so the Jester (a finite, one-shot resource) can't
+			// be spent accidentally by a stray keystroke.
 			e.preventDefault();
-			close();
+			open = true;
 		}
 	}
 </script>
@@ -44,12 +73,15 @@
 				type="button"
 				onclick={toggle}
 				disabled={!canUse}
-				aria-label="Use Jester ability ({remaining} remaining)"
-				title="Tap to view the Jester ability"
+				aria-label="Use Jester ability ({remaining} remaining). Keyboard shortcut: 0"
+				title="Use Jester (press 0)"
 				class="jester-peek pointer-events-auto"
 				class:disabled={!canUse}
 			>
 				<JesterIcon size="1.5rem" class="jester-peek-icon" />
+				{#if i === 0}
+					<kbd class="jester-kbd hidden md:block" aria-hidden="true">0</kbd>
+				{/if}
 			</button>
 		{/each}
 	</div>
@@ -163,6 +195,23 @@
 	:global(.jester-peek.disabled) {
 		filter: grayscale(0.7);
 		cursor: not-allowed;
+	}
+	/* Tiny "0" key hint floating off the right edge of the topmost peek tab so keyboard
+	   users know how to activate. Matches the kbd styling used under hand cards. */
+	:global(.jester-kbd) {
+		position: absolute;
+		left: calc(100% + 0.25rem);
+		top: 50%;
+		transform: translateY(-50%);
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 10px;
+		line-height: 1;
+		padding: 0.15rem 0.35rem;
+		border-radius: 0.25rem;
+		border: 1px solid rgba(251, 191, 36, 0.55);
+		color: rgb(252, 211, 77);
+		background: rgba(15, 23, 42, 0.85);
+		pointer-events: none;
 	}
 
 	@keyframes jester-pop-in {

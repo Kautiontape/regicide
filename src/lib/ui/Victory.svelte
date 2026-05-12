@@ -97,7 +97,7 @@
 </script>
 
 <div
-	class="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 overflow-hidden bg-slate-950/85 backdrop-blur-sm"
+	class="fixed inset-0 z-40 flex flex-col items-center justify-center p-6 overflow-hidden bg-slate-950/85 backdrop-blur-sm"
 	role="status"
 	aria-live="polite"
 >

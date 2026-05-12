@@ -417,3 +417,60 @@ describe('solo Jester ability', () => {
 		expect(() => useJester(damaged)).not.toThrow();
 	});
 });
+
+describe('tutorial mode', () => {
+	function ids(state: GameState): string[] {
+		return state.hand.map((c) => c.id);
+	}
+
+	it('deals the scripted opening hand and Jack of Hearts as first enemy', () => {
+		const s = newGame({ jesters: 0, handSize: 8, tutorial: true });
+		expect(s.currentEnemy?.suit).toBe('hearts');
+		expect(s.currentEnemy?.rank).toBe('J');
+		// The hand contains exactly the 8 scripted cards. Order doesn't matter — the UI sorts.
+		expect(ids(s).sort()).toEqual(['3C', '4D', '5C', '5S', '6C', '7D', '8C', 'AS'].sort());
+	});
+
+	it('runs the scripted T1-T4 plays to an exact kill on the Jack of Hearts', () => {
+		// This test is the contract behind the tutorial design: with the rigged deck and the
+		// recommended plays, T4's Ace♠ + 4♥ companion deals exactly the Jack's remaining HP.
+		// If anything in the engine, deck, or scripted hand drifts, this test catches it.
+		let s = newGame({ jesters: 0, handSize: 8, tutorial: true });
+
+		// T1: play 5♠ → shield 5, deal 5 → Jack 15/20
+		s = play(s, ['5S']).state;
+		expect(s.shield).toBe(5);
+		expect(s.currentEnemy?.damageTaken).toBe(5);
+		expect(s.phase).toBe('damage');
+		// Cover the 5-damage hit (10 atk - 5 shield) with one card; 6♣ is the auto-pick favourite.
+		s = takeDamage(s, ['6C']);
+		expect(s.phase).toBe('play');
+		expect(s.turn).toBe(2);
+
+		// T2: play 4♦ → draw 3 (5♦, 5♥, 4♥), deal 4 → Jack 11/20
+		s = play(s, ['4D']).state;
+		expect(s.currentEnemy?.damageTaken).toBe(9);
+		expect(s.hand.find((c) => c.id === '4H')).toBeDefined();
+		// Cover the 5 again — 5♦ is now in hand and is the perfect single discard.
+		s = takeDamage(s, ['5D']);
+		expect(s.turn).toBe(3);
+
+		// T3: play 3♣ → clubs doubles, deal 6 → Jack 15/20
+		s = play(s, ['3C']).state;
+		expect(s.currentEnemy?.damageTaken).toBe(15);
+		s = takeDamage(s, ['5H']);
+		expect(s.turn).toBe(4);
+
+		// T4: play A♠ + 4♥ → companion (1+4=5), hearts suppressed, exact kill
+		const t4 = play(s, ['AS', '4H']);
+		expect(t4.activations.find((a) => a.suit === 'hearts')?.suppressed).toBe(true);
+		expect(t4.defeated).toEqual({ exact: true });
+		// Jack of Hearts moves face-down on top of the tavern (last position) per exact-kill rule.
+		const top = t4.state.tavernDeck[t4.state.tavernDeck.length - 1];
+		expect(top.id).toBe('JH');
+		// Tutorial castle order is J then Q then K, hearts/diamonds/clubs/spades within each
+		// rank — so the next enemy is Jack of Diamonds. Eleven royals remain after the kill.
+		expect(t4.state.currentEnemy?.rank).toBe('J');
+		expect(t4.state.currentEnemy?.suit).toBe('diamonds');
+	});
+});

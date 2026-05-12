@@ -13,8 +13,9 @@
 		 * Surfaces a small ⊘ badge plus a slight desaturation; the card still attacks for value.
 		 */
 		suppressed?: boolean;
-		/** Visual emphasis: 'suggest' = green outline (auto-pick recommendation). */
-		emphasis?: 'suggest' | null;
+		/** Visual emphasis: 'suggest' = green outline (auto-pick recommendation), 'recommend'
+		 *  = pulsing amber outline (tutorial is asking the player to pick this card). */
+		emphasis?: 'suggest' | 'recommend' | null;
 		/** Optional tooltip text. If omitted, generated from suit/rank. Passed to onhover. */
 		tooltip?: string;
 		onclick?: () => void;
@@ -143,6 +144,7 @@
 		{!isRed && !isJester ? 'text-slate-900' : ''}
 		{selected ? 'ring-4 ring-amber-400 -translate-y-2 shadow-xl' : 'card-lift'}
 		{!selected && emphasis === 'suggest' ? 'ring-2 ring-emerald-400/80' : ''}
+		{!selected && emphasis === 'recommend' ? 'ring-4 ring-amber-400 card-pulse' : ''}
 		{disabled ? 'opacity-40 cursor-not-allowed' : ''}
 		{dim && !selected ? 'opacity-30 grayscale' : ''}"
 	disabled={disabled && !selected}
@@ -209,5 +211,21 @@
 	   even on the smallest card size without being so big they swallow the whole card. */
 	:global(.suit-x) {
 		filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.4));
+	}
+
+	/* Tutorial recommendation pulse — amber halo that breathes between a clearly-visible
+	   resting glow and a brighter peak. Spread is kept tight (≤10px) so the glow fits inside
+	   the hand container's overflow box on mobile, where overflow-x:auto forces overflow-y
+	   to clip per CSS spec. The brightness comes from opacity, not radius. */
+	@keyframes card-pulse-glow {
+		0%, 100% {
+			box-shadow: 0 0 6px 2px rgba(252, 211, 77, 0.85), 0 4px 6px rgba(0, 0, 0, 0.25);
+		}
+		50% {
+			box-shadow: 0 0 10px 4px rgba(252, 211, 77, 1), 0 4px 6px rgba(0, 0, 0, 0.25);
+		}
+	}
+	:global(.card-pulse) {
+		animation: card-pulse-glow 1.4s ease-in-out infinite;
 	}
 </style>

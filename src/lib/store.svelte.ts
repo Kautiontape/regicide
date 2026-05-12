@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import {
 	canPayDamage,
+	checkCombo,
 	checkPlay,
 	damageCheck,
 	newGame,
@@ -94,6 +95,17 @@ function createGameStore() {
 		saveState(null);
 	}
 
+	/** Surrender the current run: transition into the 'lost' phase so the Defeat overlay
+	 * surfaces with the final damage math instead of dumping the player back to setup. */
+	function concede() {
+		if (!state) return;
+		if (state.phase === 'won' || state.phase === 'lost') return;
+		state = { ...state, phase: 'lost', endedAt: Date.now() };
+		selected = [];
+		maybeRecordCompletion(state);
+		saveState(state);
+	}
+
 	function toggleSelect(cardId: string) {
 		if (!state) return;
 		if (state.phase !== 'play' && state.phase !== 'damage') return;
@@ -117,6 +129,8 @@ function createGameStore() {
 		if (selected.length === 0) return;
 		const check = checkPlay(state, selected);
 		if (!check.ok) return;
+		const playedCards = state.hand.filter((c) => selected.includes(c.id));
+		const comboCheck = checkCombo(playedCards);
 		const result = play(state, selected);
 		// If the enemy survived, immediately compute damage check.
 		let next = result.state;
@@ -131,6 +145,10 @@ function createGameStore() {
 			else if (a.suit === 'diamonds') updates.push('diamondsDraw');
 			else if (a.suit === 'clubs') updates.push('clubsDouble');
 			else if (a.suit === 'spades') updates.push('spadesShield');
+		}
+		if (comboCheck.ok) {
+			if (comboCheck.kind === 'companion') updates.push('companion');
+			else if (comboCheck.kind === 'sameRank') updates.push('sameRankCombo');
 		}
 		if (result.defeated) updates.push(result.defeated.exact ? 'exactKill' : 'overkill');
 		bumpSeen(updates);
@@ -211,6 +229,7 @@ function createGameStore() {
 		init,
 		start,
 		abandon,
+		concede,
 		toggleSelect,
 		clearSelection,
 		replaceSelection,
