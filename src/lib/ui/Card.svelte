@@ -63,7 +63,7 @@
 
 	const generatedTip = $derived(
 		isJester
-			? 'Jester (value 0): cancels the royal\'s immunity. In solo, your next play is randomly chosen from your hand.'
+			? 'Jester (value 0): cancels the royal\'s immunity. In solo, your next play is a random card from your hand.'
 			: card.suit
 				? `${rankLabel} of ${card.suit} (value ${card.value}). ${SUIT_RULE[card.suit]}`
 				: ''
@@ -174,7 +174,7 @@
 		<div
 			class="absolute inset-0 flex items-center justify-center pointer-events-none"
 			title="The royal is immune to this suit — the card still attacks, but its power won't fire"
-			aria-label="{card.suit} power suppressed by royal immunity"
+			aria-label="{card.suit} power blocked by royal immunity"
 		>
 			<svg viewBox="0 0 24 24" class="suit-x w-2/3 h-2/3 stroke-red-600 drop-shadow" fill="none" stroke-width="3" stroke-linecap="round">
 				<line x1="5" y1="5" x2="19" y2="19" />

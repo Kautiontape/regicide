@@ -26,8 +26,8 @@
 	const tipText = $derived(
 		`${rankLabel} of ${royal.suit}. HP ${remainingHP}/${royal.maxHealth} · ATK ${effectiveAttack}. ` +
 			(immunityCancelled
-				? 'Immunity has been cancelled by a Jester.'
-				: `Immune to ${royal.suit} (powers from ${royal.suit} cards do not activate).`) +
+				? 'A Jester knocked out this royal\'s immunity.'
+				: `Immune to ${royal.suit} — those cards still hit, but their powers fizzle.`) +
 			' Defeat by reducing HP to 0; exact damage places it on top of the tavern deck.'
 	);
 

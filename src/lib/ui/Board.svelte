@@ -118,8 +118,8 @@
 		const remainingHP = r.maxHealth - r.damageTaken;
 		const eff = Math.max(0, r.attack - game.shield);
 		const detail = gs.immunityCancelled
-			? 'Immunity has been cancelled by a Jester.'
-			: `Immune to ${r.suit} — powers from ${r.suit} cards do not activate.`;
+			? 'A Jester knocked out this royal\'s immunity.'
+			: `Immune to ${r.suit} — those cards still hit, but their powers fizzle.`;
 		return {
 			kind: 'royal',
 			text: `${rankLabel} of ${r.suit} · HP ${remainingHP}/${r.maxHealth} · ATK ${eff}`,
@@ -685,7 +685,7 @@
 				title="Tavern deck"
 				cards={gs.tavernDeck}
 				sorted
-				hint="Cards left in the draw pile, shown in arbitrary order. Draw order is hidden."
+				hint="What's left in the draw pile, in arbitrary order. Actual draw order is hidden."
 				onclose={() => (openPile = null)}
 			/>
 		{:else if openPile === 'discard'}

@@ -37,7 +37,7 @@ export const RULE_TEXT: Record<RuleId, { short: string; long: string }> = {
 	},
 	suitImmunity: {
 		short: 'immune',
-		long: 'A royal is immune to its own suit. The power on a card matching the royal\'s suit does not activate.'
+		long: 'A royal is immune to its own suit. Cards of that suit still attack — the power just fizzles.'
 	},
 	companion: {
 		short: 'animal companion',
