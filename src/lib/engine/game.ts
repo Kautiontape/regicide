@@ -386,6 +386,12 @@ export function useJester(state: GameState): GameState {
 		kind: 'jester',
 		text: `Jester ability used — discarded ${dumped.length} card${dumped.length === 1 ? '' : 's'}, drew ${drawn.length}. (${s.jestersRemaining} left)`
 	});
+	// Re-run the phase-appropriate lose check. The Jester can fail to refill if the tavern is
+	// empty (or doesn't have enough left to cover damage), and that final charge being spent
+	// means there's no further recovery — without this, the player soft-locks with an empty
+	// hand on their turn.
+	if (s.phase === 'play') return playStartCheck(s);
+	if (s.phase === 'damage') return damageCheck(s);
 	return s;
 }
 

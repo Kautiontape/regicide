@@ -416,6 +416,26 @@ describe('solo Jester ability', () => {
 		const damaged: GameState = { ...s0, phase: 'damage' };
 		expect(() => useJester(damaged)).not.toThrow();
 	});
+
+	it('triggers loss in play phase when the last Jester refills nothing (empty tavern)', () => {
+		// Reported soft-lock: hand empty after a perfect block, last Jester used, tavern empty
+		// → player sat on their turn with no hand, no Jesters, no tavern. useJester must re-run
+		// the play-start lose check.
+		const s0 = newGame({ jesters: 1, handSize: 8 }, 1);
+		const s: GameState = { ...s0, hand: [], tavernDeck: [], phase: 'play' };
+		const after = useJester(s);
+		expect(after.phase).toBe('lost');
+		expect(after.jestersRemaining).toBe(0);
+	});
+
+	it('triggers loss in damage phase when the last Jester refills nothing (empty tavern)', () => {
+		const s0 = newGame({ jesters: 1, handSize: 8 }, 1);
+		const enemy = { ...s0.currentEnemy!, attack: 10 };
+		const s: GameState = { ...s0, currentEnemy: enemy, hand: [], tavernDeck: [], phase: 'damage' };
+		const after = useJester(s);
+		expect(after.phase).toBe('lost');
+		expect(after.jestersRemaining).toBe(0);
+	});
 });
 
 describe('tutorial mode', () => {
