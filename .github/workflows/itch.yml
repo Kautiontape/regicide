@@ -1,0 +1,61 @@
+name: Publish to itch.io
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Vite 8 / TS 6 need a current Node, same reason deploy.yml pins one.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # First, so a mismatch costs nothing and publishes nothing. npm version
+      # writes package.json and tags in one step, so the two can only disagree
+      # if someone tagged by hand.
+      - name: Check the tag against package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json $pkg — use npm version" >&2
+            exit 1
+          fi
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      # itch.io's own CDN. The URL ends in LATEST, so there is nothing to pin
+      # and nothing to track, and the publish key stays out of third-party code.
+      - name: Install butler
+        run: |
+          curl -sSfL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          mkdir -p "$HOME/.local/bin"
+          unzip -q butler.zip -d "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/butler"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Package
+        run: ./tools/itch-package.sh
+
+      - name: Push to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: ./tools/itch-deploy.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/paper-crowns-itch.zip --generate-notes --verify-tag

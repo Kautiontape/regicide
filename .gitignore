@@ -25,3 +25,8 @@ vite.config.ts.timestamp-*
 # Playwright MCP / dev screenshots (taken during local browser testing)
 .playwright-mcp/
 /*.png
+# ...but the itch cover is a shipped asset, not a stray dev capture.
+!/cover.png
+
+# itch.io packaging output
+/dist

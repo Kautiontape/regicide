@@ -1,42 +1,46 @@
-# sv
+# Paper Crowns
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A solo card game for a standard 52-card deck, played in the browser. Twelve
+royals, four suit powers, two Jesters, and no one to help.
 
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.15.3 create --template minimal --types ts --no-install .
-```
+An unofficial solo adaptation of [Regicide](https://www.badgersfrommars.com/regicide)
+by Paul Abrahams, published by Badgers from Mars. Not affiliated with them —
+see [NOTICE.md](NOTICE.md), and buy a copy of the real thing.
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+    npm install
+    npm run dev
 
-```sh
-npm run dev
+    npm test          # vitest, engine + rules suites
+    npm run check     # svelte-check
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+## Deploying
 
-## Building
+Two targets, two triggers:
 
-To create a production version of your app:
+| Target | Trigger | Workflow |
+|---|---|---|
+| ktn (`regicide.kautiontape.com`) | every push to `main` | `.github/workflows/deploy.yml` |
+| itch.io | a `v*` tag | `.github/workflows/itch.yml` |
 
-```sh
-npm run build
-```
+    npm version 1.2.0 && git push --follow-tags
 
-You can preview the production build with `npm run preview`.
+[docs/itch.md](docs/itch.md) covers the store page: settings, copy, assets, and
+why the itch build needs hash routing and a path rewrite that the ktn build
+doesn't.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Licence
+
+The code in this repository is [MIT](LICENSE). That covers this implementation
+only — it says nothing about Regicide itself, which belongs to its designer and
+publisher. See [NOTICE.md](NOTICE.md).
+
+## Layout
+
+    src/lib/engine/     rules, combat maths, and the game state machine — no UI
+    src/lib/ui/         Svelte components
+    src/lib/            store, history, daily challenge, share text
+    docs/               store screenshots and the publishing guide
+    press/              logo, icons and social art (sources in press/src)
+    tools/              itch packaging and deploy scripts

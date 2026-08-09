@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+	<title>Paper Crowns</title>
+	<!-- Three-point crown. Sized for legibility at 16px favicons: simple shapes,
+		 high-contrast gold against a transparent background. -->
+	<path
+		d="M4 23 L6.5 10 L11.5 16 L16 8 L20.5 16 L25.5 10 L28 23 Z"
+		fill="#fbbf24"
+		stroke="#78350f"
+		stroke-width="1.25"
+		stroke-linejoin="round"
+	/>
+	<rect
+		x="4"
+		y="22.5"
+		width="24"
+		height="5"
+		fill="#f59e0b"
+		stroke="#78350f"
+		stroke-width="1.25"
+		stroke-linejoin="round"
+	/>
+	<!-- Jewels at each spike tip and one centered on the band. -->
+	<circle cx="6.5" cy="10" r="1.75" fill="#dc2626" stroke="#78350f" stroke-width="0.6" />
+	<circle cx="16" cy="8" r="1.85" fill="#dc2626" stroke="#78350f" stroke-width="0.6" />
+	<circle cx="25.5" cy="10" r="1.75" fill="#dc2626" stroke="#78350f" stroke-width="0.6" />
+	<circle cx="16" cy="25" r="1.6" fill="#dc2626" stroke="#78350f" stroke-width="0.6" />
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="630" height="500" viewBox="0 0 630 500">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#04231f"/>
+			<stop offset="0.45" stop-color="#0f172a"/>
+			<stop offset="1" stop-color="#020617"/>
+		</linearGradient>
+	</defs>
+	<rect width="630" height="500" fill="url(#bg)"/>
+	<g transform="translate(236,96) scale(5.2)">
+	<path d="M4 23 L6.5 10 L11.5 16 L16 8 L20.5 16 L25.5 10 L28 23 Z" fill="#fbbf24" stroke="#78350f" stroke-width="0.2404" stroke-linejoin="round"/>
+	<rect x="4" y="22.5" width="24" height="5" fill="#f59e0b" stroke="#78350f" stroke-width="0.2404" stroke-linejoin="round"/>
+	<circle cx="6.5" cy="10" r="1.75" fill="#dc2626" stroke="#78350f" stroke-width="0.1154"/>
+	<circle cx="16" cy="8" r="1.85" fill="#dc2626" stroke="#78350f" stroke-width="0.1154"/>
+	<circle cx="25.5" cy="10" r="1.75" fill="#dc2626" stroke="#78350f" stroke-width="0.1154"/>
+	<circle cx="16" cy="25" r="1.6" fill="#dc2626" stroke="#78350f" stroke-width="0.1154"/>
+	</g>
+	<text x="315" y="340" font-family="Montserrat" font-weight="bold" font-size="62" letter-spacing="3" fill="#f8fafc" text-anchor="middle">PAPER</text>
+	<text x="315" y="404" font-family="Montserrat" font-weight="bold" font-size="62" letter-spacing="3" fill="#f8fafc" text-anchor="middle">CROWNS</text>
+	<text x="240" y="456" font-family="DejaVu Sans" font-size="28" fill="#f8fafc" text-anchor="middle">♠</text>
+	<text x="296" y="456" font-family="DejaVu Sans" font-size="28" fill="#ef4444" text-anchor="middle">♥</text>
+	<text x="352" y="456" font-family="DejaVu Sans" font-size="28" fill="#ef4444" text-anchor="middle">♦</text>
+	<text x="408" y="456" font-family="DejaVu Sans" font-size="28" fill="#f8fafc" text-anchor="middle">♣</text>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#04231f"/>
+			<stop offset="0.45" stop-color="#0f172a"/>
+			<stop offset="1" stop-color="#020617"/>
+		</linearGradient>
+	</defs>
+	<rect width="1200" height="630" fill="url(#bg)"/>
+	<g transform="translate(526,120) scale(4.6)">
+	<path d="M4 23 L6.5 10 L11.5 16 L16 8 L20.5 16 L25.5 10 L28 23 Z" fill="#fbbf24" stroke="#78350f" stroke-width="0.2717" stroke-linejoin="round"/>
+	<rect x="4" y="22.5" width="24" height="5" fill="#f59e0b" stroke="#78350f" stroke-width="0.2717" stroke-linejoin="round"/>
+	<circle cx="6.5" cy="10" r="1.75" fill="#dc2626" stroke="#78350f" stroke-width="0.1304"/>
+	<circle cx="16" cy="8" r="1.85" fill="#dc2626" stroke="#78350f" stroke-width="0.1304"/>
+	<circle cx="25.5" cy="10" r="1.75" fill="#dc2626" stroke="#78350f" stroke-width="0.1304"/>
+	<circle cx="16" cy="25" r="1.6" fill="#dc2626" stroke="#78350f" stroke-width="0.1304"/>
+	</g>
+	<text x="600" y="366" font-family="Montserrat" font-weight="bold" font-size="88" letter-spacing="5" fill="#f8fafc" text-anchor="middle">PAPER CROWNS</text>
+	<text x="600" y="424" font-family="Montserrat" font-weight="normal" font-size="30" letter-spacing="1" fill="#94a3b8" text-anchor="middle">Solo. Twelve royals. One deck.</text>
+	<text x="462" y="520" font-family="DejaVu Sans" font-size="46" fill="#f8fafc" text-anchor="middle">♠</text>
+	<text x="554" y="520" font-family="DejaVu Sans" font-size="46" fill="#ef4444" text-anchor="middle">♥</text>
+	<text x="646" y="520" font-family="DejaVu Sans" font-size="46" fill="#ef4444" text-anchor="middle">♦</text>
+	<text x="738" y="520" font-family="DejaVu Sans" font-size="46" fill="#f8fafc" text-anchor="middle">♣</text>
+</svg>
