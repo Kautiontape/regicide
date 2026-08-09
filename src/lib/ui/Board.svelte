@@ -428,69 +428,80 @@
 				 sits in the middle of the viewport on desktop. -->
 			<div class="hidden md:block w-72 flex-shrink-0" aria-hidden="true"></div>
 
-			<!-- Center column. justify-start + mt-auto on the hand row anchors play+hand to the
-				 bottom while the upper sections keep stable positions, even as forecast/played
-				 sections appear or disappear. -->
-			<div class="flex-1 flex flex-col items-center justify-start px-2 py-2 sm:p-6 gap-2 sm:gap-4 relative min-h-0">
-				{#if gs.currentEnemy}
-					<Royal
-						royal={gs.currentEnemy}
-						shield={game.shield}
-						immunityCancelled={gs.immunityCancelled}
-						onhover={(t) => {
-							// Hover/tap on the royal pushes its description into the info slot.
-							if (t) {
-								const m = describeRoyal();
-								if (m) setOverride(m, 6000);
-							} else if (infoOverride?.kind === 'royal') {
-								clearOverride();
-							}
-						}}
-					/>
-				{/if}
+			<!-- Center column. The upper region scrolls when it has to; the action row and
+				 hand are pinned beneath it so they can never be pushed off the bottom. -->
+			<div class="flex-1 flex flex-col items-center px-2 py-2 sm:p-6 relative min-h-0">
 				<!-- End-state overlays sit on top of whatever was on the board so the player
-					 still sees the royal that beat them along with the damage math. -->
+					 still sees the royal that beat them along with the damage math. They're
+					 fixed inset-0, so they stay out of the scroll region below rather than
+					 scrolling with it. -->
 				{#if gs.phase === 'won'}
 					<Victory state={gs} onNewGame={() => game.abandon()} />
 				{:else if gs.phase === 'lost'}
 					<Defeat state={gs} onNewGame={() => game.abandon()} />
 				{/if}
 
-				<!-- Played cards this battle -->
-				{#if gs.playedThisBattle.length > 0}
-					<div class="flex flex-col items-center gap-0.5 sm:gap-1">
-						<div class="hidden sm:block text-xs text-slate-400 uppercase tracking-wider">Played this battle</div>
-						<div class="flex gap-1 flex-wrap justify-center max-w-[92vw] md:max-w-2xl">
-							{#each gs.playedThisBattle as c (c.id)}
-								<Card card={c} size="sm" disabled />
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				<!-- Forecast / damage meter — fixed min-height so the play button and hand below
-					 don't reflow when a forecast appears or disappears. -->
-				<div class="w-full px-1 sm:px-2 min-h-[7rem] sm:min-h-[7.5rem] flex items-center">
-					{#if gs.phase === 'play' && fc && selected.length > 0}
-						<Forecast
-							forecast={fc}
-							currentShield={game.shield}
-							currentEnemyAtk={game.effectiveAttack}
-						/>
-					{:else if gs.phase === 'damage' && gs.currentEnemy}
-						<DamageMeter
-							owed={damageOwed}
-							selected={selectedSum}
-							baseAttack={baseAttack}
+				<!-- Everything above the hand. min-h-0 lets this shrink past its content and
+					 overflow-y-auto gives the content somewhere to go. Without both, the column
+					 overflowed and .board-root's overflow:hidden ate the hand — 161px of it at
+					 1280x800, with no scrollbar to reach it. -->
+				<div class="board-upper flex-1 min-h-0 w-full flex flex-col items-center justify-start gap-2 sm:gap-4 overflow-y-auto">
+					{#if gs.currentEnemy}
+						<Royal
+							royal={gs.currentEnemy}
 							shield={game.shield}
-							canPay={game.canPay}
+							immunityCancelled={gs.immunityCancelled}
+							onhover={(t) => {
+								// Hover/tap on the royal pushes its description into the info slot.
+								if (t) {
+									const m = describeRoyal();
+									if (m) setOverride(m, 6000);
+								} else if (infoOverride?.kind === 'royal') {
+									clearOverride();
+								}
+							}}
 						/>
 					{/if}
+
+					<!-- Played cards this battle -->
+					{#if gs.playedThisBattle.length > 0}
+						<div class="flex flex-col items-center gap-0.5 sm:gap-1">
+							<div class="hidden sm:block text-xs text-slate-400 uppercase tracking-wider">Played this battle</div>
+							<div class="flex gap-1 flex-wrap justify-center max-w-[92vw] md:max-w-2xl">
+								{#each gs.playedThisBattle as c (c.id)}
+									<Card card={c} size="sm" disabled />
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Forecast / damage meter — reserves height so the action row and hand
+						 don't reflow when a forecast appears or disappears mid-turn. The
+						 reservation is constant for a given viewport, so nothing jumps between
+						 turns; it just claims less on short screens, where 7.5rem of mostly
+						 empty space is the difference between fitting and not. -->
+					<div class="forecast-slot w-full px-1 sm:px-2 flex items-center">
+						{#if gs.phase === 'play' && fc && selected.length > 0}
+							<Forecast
+								forecast={fc}
+								currentShield={game.shield}
+								currentEnemyAtk={game.effectiveAttack}
+							/>
+						{:else if gs.phase === 'damage' && gs.currentEnemy}
+							<DamageMeter
+								owed={damageOwed}
+								selected={selectedSum}
+								baseAttack={baseAttack}
+								shield={game.shield}
+								canPay={game.canPay}
+							/>
+						{/if}
+					</div>
 				</div>
 
-				<!-- Hand. mt-auto pushes the action button + hand to the bottom of the column,
-					 keeping their positions stable as upper sections (forecast, played pile) change. -->
-				<div class="mt-auto flex flex-col items-center gap-2 sm:gap-3 w-full">
+				<!-- Action button + hand. flex-shrink-0 holds them at full height however little
+					 room is left; the scroll region above absorbs the squeeze instead. -->
+				<div class="flex-shrink-0 flex flex-col items-center gap-2 sm:gap-3 w-full pt-2 sm:pt-4">
 					<div class="flex items-center gap-2">
 						{#if game.shield > 0}
 							<div
@@ -783,6 +794,32 @@
 			height: 100dvh;
 			overflow: hidden;
 		}
+	}
+
+	/* The forecast/damage slot holds space so the action row and hand don't shift when
+	   a forecast appears mid-turn. Reserving 7.5rem of usually-empty space costs more
+	   than it's worth on a short viewport, so the reservation scales with height rather
+	   than width — it stays constant while you play, which is what stops the reflow. */
+	:global(.forecast-slot) {
+		min-height: 4rem;
+	}
+	@media (min-height: 900px) {
+		:global(.forecast-slot) {
+			min-height: 7.5rem;
+		}
+	}
+
+	/* Matches .hand-scroll so a squeezed board doesn't sprout a heavy default scrollbar. */
+	:global(.board-upper) {
+		scrollbar-width: thin;
+		scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+	}
+	:global(.board-upper::-webkit-scrollbar) {
+		width: 4px;
+	}
+	:global(.board-upper::-webkit-scrollbar-thumb) {
+		background: rgba(148, 163, 184, 0.3);
+		border-radius: 2px;
 	}
 
 	@keyframes sheet-up {

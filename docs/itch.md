@@ -114,7 +114,7 @@ toast reads "Could not share"; with it, "Copied to clipboard".
 |---|---|
 | Kind of project | HTML |
 | Upload | `paper-crowns-itch.zip`, tick **This file will be played in the browser** |
-| Viewport | 1280 x 800 |
+| Viewport | 1280 x 1060 |
 | Fullscreen button | on |
 | Mobile friendly | on |
 | Genre | Card Game |
@@ -124,6 +124,12 @@ No `regicide` tag. A tag is metadata, not a sentence — it's the one place the
 word would sit as a bare keyword with nothing around it saying whose game it
 is, and it's what a trademark search looks for. The tagline already carries the
 discovery.
+
+1060 rather than a rounder 800: that's the height the board needs at 1280 wide
+to hold the damage phase — royal, played pile, damage meter, action row and a
+full hand — without the upper region having to scroll. Shorter frames still
+work, they just put a scrollbar on the card area, but the embed may as well be
+given the room. Measure it again if the board layout changes.
 
 The board scales to the space it gets, so the viewport is a starting point
 rather than a constraint. Mobile friendly is on: the layout has real small-screen
