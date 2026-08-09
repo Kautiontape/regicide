@@ -6,7 +6,7 @@ const TOTAL_ROYALS = 12;
 export const SHARE_URL = 'https://regicide.kautiontape.com';
 
 /** Build the spoiler-free Wordle-style share text for a finished run. Layout:
- *    L1: header line — "Regicide" + (Daily #N | Run) + tier (won only)
+ *    L1: header line — "Paper Crowns" + (Daily #N | Run) + tier (won only)
  *    L2: outcome — "12/12 royals · 14T · 6:32" or "8/12 royals · fell to Q♥"
  *    L3 (optional): assist marks — 📖 tutorial, 🔁 retry
  *    L4: SHARE_URL
@@ -22,7 +22,7 @@ export function buildShareText(record: GameRecord, lastEnemy?: string): string {
 }
 
 function headerLine(record: GameRecord): string {
-	const parts: string[] = ['Regicide'];
+	const parts: string[] = ['Paper Crowns'];
 	if (record.mode === 'daily' && record.dailyDate) {
 		parts.push(`Daily #${dailyNumber(record.dailyDate)}`);
 	}

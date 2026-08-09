@@ -334,7 +334,7 @@
 		<!-- Top bar -->
 		<header class="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 border-b border-slate-800/60 gap-2">
 			<div class="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-				<h1 class="font-bold tracking-tight text-base sm:text-lg">Regicide</h1>
+				<h1 class="font-bold tracking-tight text-base sm:text-lg">Paper Crowns</h1>
 				<div class="text-[11px] sm:text-xs text-slate-400 truncate flex items-center gap-1.5 sm:gap-2">
 					<span class="hidden sm:inline">Turn {gs.turn}</span><span class="sm:hidden">T{gs.turn}</span>
 					<span class="text-slate-600">·</span>

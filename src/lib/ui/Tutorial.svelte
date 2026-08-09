@@ -113,7 +113,7 @@
 		if (gs.turn === 1 && gs.phase === 'play' && !skip('script:t1-pre')) {
 			return {
 				id: 'script:t1-pre',
-				title: 'Welcome to Regicide',
+				title: 'Welcome to Paper Crowns',
 				body: 'Tap a card to select it. Try the 5 of Spades.'
 			};
 		}

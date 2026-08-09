@@ -84,7 +84,7 @@
 
 <div class="min-h-screen flex flex-col items-center justify-center gap-4 p-6">
 	<div class="max-w-md w-full bg-slate-900/80 border border-slate-700 rounded-2xl p-8 shadow-2xl">
-		<h1 class="text-4xl font-bold tracking-tight text-white mb-1">Regicide</h1>
+		<h1 class="text-4xl font-bold tracking-tight text-white mb-1">Paper Crowns</h1>
 		<p class="text-slate-400 mb-6">Solo. A standard 52-card deck. Twelve royals. Don't die.</p>
 
 		<div class="space-y-3">
@@ -297,20 +297,21 @@
 		{/if}
 	</div>
 
+	<!-- The credit, the disclaimer and the buy link are one unit. See docs/itch.md. -->
 	<p class="max-w-md text-center text-xs text-slate-500 leading-relaxed">
-		Unofficial digital adaptation of Regicide by Paul Abrahams, published by
+		An unofficial solo adaptation of Regicide, designed by Paul Abrahams and published by
 		<a
 			href="https://www.badgersfrommars.com/regicide"
 			target="_blank"
 			rel="noopener"
 			class="text-amber-400/80 hover:text-amber-300 underline-offset-2 hover:underline"
-		>Badgers from Mars</a>. Used under
+		>Badgers from Mars</a>. Not affiliated with or endorsed by them —
 		<a
-			href="https://creativecommons.org/licenses/by/4.0/"
+			href="https://badgersfrommars.com/en-us/collections/regicide"
 			target="_blank"
 			rel="noopener"
 			class="text-amber-400/80 hover:text-amber-300 underline-offset-2 hover:underline"
-		>CC BY 4.0</a>. Buy a physical copy to support them.
+		>buy a copy</a> to support the people who made the game.
 	</p>
 </div>
 

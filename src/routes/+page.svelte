@@ -10,7 +10,7 @@
 </script>
 
 <svelte:head>
-	<title>Regicide</title>
+	<title>Paper Crowns</title>
 </svelte:head>
 
 {#if game.state}
