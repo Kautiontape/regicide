@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { game } from '$lib/store.svelte';
-	import type { RuleId } from '$lib/engine';
+	import { game } from '#lib/store.svelte.js';
+	import type { RuleId } from '#lib/engine/index.js';
 
 	/* ───────── persistence ───────── */
 

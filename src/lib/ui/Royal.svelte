@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Royal } from '$lib/engine';
+	import type { Royal } from '#lib/engine/index.js';
 
 	interface Props {
 		royal: Royal;

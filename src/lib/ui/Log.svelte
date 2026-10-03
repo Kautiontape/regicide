@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { LogEntry } from '$lib/engine';
+	import type { LogEntry } from '#lib/engine/index.js';
 
 	interface Props {
 		entries: LogEntry[];

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Phase } from '$lib/engine';
+	import type { Phase } from '#lib/engine/index.js';
 
 	interface Props {
 		phase: Phase;

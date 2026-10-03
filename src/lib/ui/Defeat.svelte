@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { GameState } from '$lib/engine';
-	import { buildRecord, formatDuration } from '$lib/history';
-	import { dailyNumber, loadDailyAttempt } from '$lib/daily';
+	import type { GameState } from '#lib/engine/index.js';
+	import { buildRecord, formatDuration } from '#lib/history.js';
+	import { dailyNumber, loadDailyAttempt } from '#lib/daily.js';
 	import ShareButton from './ShareButton.svelte';
 
 	interface Props {
