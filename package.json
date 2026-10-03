@@ -20,13 +20,13 @@
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/vite": "^4.2.2",
 		"@types/node": "^25.6.2",
-		"@vitest/ui": "^4.1.5",
+		"@vitest/ui": "^5.0.0",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.7.5",
 		"tailwindcss": "^4.2.2",
 		"typescript": "^6.0.2",
 		"vite": "^8.0.12",
-		"vitest": "^4.1.5"
+		"vitest": "^5.0.0"
 	},
 	"imports": {
 		"#lib": "./src/lib/index.js",
