@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Card } from '$lib/engine';
+	import type { Card } from '#lib/engine/index.js';
 	import JesterIcon from './JesterIcon.svelte';
 
 	interface Props {

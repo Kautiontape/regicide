@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { game } from '$lib/store.svelte';
-	import { checkCombo, forecast, RULE_TEXT, type Card as CardType, type RuleId } from '$lib/engine';
-	import { tutorialAdvice } from '$lib/tutorial';
+	import { game } from '#lib/store.svelte.js';
+	import { checkCombo, forecast, RULE_TEXT, type Card as CardType, type RuleId } from '#lib/engine/index.js';
+	import { tutorialAdvice } from '#lib/tutorial.js';
 	import Card from './Card.svelte';
 	import Royal from './Royal.svelte';
 	import PhaseStrip from './PhaseStrip.svelte';

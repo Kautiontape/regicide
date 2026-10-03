@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import type { GameMode, GameState, LogEntry } from './engine';
 
 const HISTORY_KEY = 'regicide:history:v1';

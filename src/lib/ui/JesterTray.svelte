@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { game } from '$lib/store.svelte';
+	import { game } from '#lib/store.svelte.js';
 	import JesterIcon from './JesterIcon.svelte';
 
 	interface Props {

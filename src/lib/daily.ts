@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 /** Local-time day key. Local time was an explicit product decision: globally synchronised
  *  midnights add support burden for nothing — if a player in Tokyo gets the puzzle 12 hours

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Card as CardType } from '$lib/engine';
+	import type { Card as CardType } from '#lib/engine/index.js';
 	import Card from './Card.svelte';
 
 	interface Props {

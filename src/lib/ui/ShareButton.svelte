@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { buildShareText, shareOrCopy } from '$lib/share';
-	import type { GameRecord } from '$lib/history';
+	import { buildShareText, shareOrCopy } from '#lib/share.js';
+	import type { GameRecord } from '#lib/history.js';
 
 	interface Props {
 		record: GameRecord;

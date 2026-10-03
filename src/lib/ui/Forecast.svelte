@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Forecast } from '$lib/engine';
+	import type { Forecast } from '#lib/engine/index.js';
 
 	interface Props {
 		forecast: Forecast | null;

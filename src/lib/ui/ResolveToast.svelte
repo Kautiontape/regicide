@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { game } from '$lib/store.svelte';
-	import { RULE_TEXT } from '$lib/engine';
-	import type { RuleId } from '$lib/engine';
+	import { game } from '#lib/store.svelte.js';
+	import { RULE_TEXT } from '#lib/engine/index.js';
+	import type { RuleId } from '#lib/engine/index.js';
 
 	let visible = $state(false);
 	let lines = $state<{ id: RuleId; verbose: boolean }[]>([]);

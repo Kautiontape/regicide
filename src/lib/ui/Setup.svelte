@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { game } from '$lib/store.svelte';
-	import { loadHistory, summarize, formatDuration, tierFor, type Tier } from '$lib/history';
+	import { game } from '#lib/store.svelte.js';
+	import { loadHistory, summarize, formatDuration, tierFor, type Tier } from '#lib/history.js';
 	import {
 		dailyNumber,
 		loadDailyAttempt,
 		seedFor,
 		todayKey,
 		type DailyAttempt
-	} from '$lib/daily';
+	} from '#lib/daily.js';
 	import ShareButton from './ShareButton.svelte';
 
 	const TIER_LABEL: Record<Tier, string> = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze' };
