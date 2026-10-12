@@ -12,12 +12,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Vite 8 / TS 6 need a current Node, same reason deploy.yml pins one.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
 
       # First, so a mismatch costs nothing and publishes nothing. npm version
       # writes package.json and tags in one step, so the two can only disagree
