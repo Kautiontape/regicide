@@ -10,7 +10,7 @@ jobs:
       # directory. ktn's system Node is 18 which is too old for Vite 8 / TS 6.
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: '26'
       - name: Deploy
         run: |
           cd /opt/services/regicide
